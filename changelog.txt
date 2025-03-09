@@ -1,0 +1,8 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2025-03-??
+
+  Features:
+    - Fork of Klonan's unit control. Updated for Factorio 2.0.
+    - It's a temporary solution.
+    - This will deprecate when Klonan releases his 2.0 Unit control. ERM mods will depend on that instead.
