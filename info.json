@@ -1,7 +1,7 @@
 {
   "name": "erm_unit_control",
-  "version": "1.0.0",
-  "date": "2025-03-??",
+  "version": "1.0.1",
+  "date": "2025-03-11",
   "title": "ERM Unit Control",
   "author": "heyqule",
   "description": "Fork of Klonan's Unit Control. Updated for Factorio 2.0.  This is a temporary solution until Klonan updates his.",
