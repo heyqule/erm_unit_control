@@ -9,6 +9,7 @@ local script_data =
   units = {},
   --unit_groups_to_disband = {},
   indicators = {},
+  indicators = {},
   unit_unselectable = {},
   debug = false,
   marked_for_refresh = {},
@@ -2058,7 +2059,7 @@ local get_unit_names = function()
   unit_names = {}
   for name, prototype in pairs (prototypes.item["select-units"].get_entity_filters(defines.selection_mode.select)) do
     if prototype.type == "unit" then
-      table.insert(unit_names, name)
+      table.insert(unit_names, prototype.name)
     end
   end
   return unit_names

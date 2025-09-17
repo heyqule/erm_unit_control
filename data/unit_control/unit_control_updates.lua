@@ -29,5 +29,5 @@ if units then
 end
 
 local unit_tool = data.raw["selection-tool"][tools.unit_selection_tool]
-unit_tool.entity_filters = selection_filter
-unit_tool.alt_entity_filters = selection_filter
+unit_tool.select.entity_filters = selection_filter
+unit_tool.alt_select.entity_filters = selection_filter

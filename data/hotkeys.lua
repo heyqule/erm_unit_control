@@ -101,6 +101,7 @@ local quick_unit_selection =
   localised_name = {tools.unit_selection_tool},
   key_sequence = "CONTROL + ALT + mouse-button-1",
   consuming = "game-only",
+  --consuming = "none",
   item_to_spawn = tools.unit_selection_tool,
   action = "spawn-item",
   order="bh",
@@ -123,6 +124,7 @@ local select_all_deployers =
   localised_name = {hotkeys.select_all_deployers},
   key_sequence = "SHIFT + ALT + mouse-button-2",
   consuming = "game-only",
+  consuming = "none",
   order="bj",
 }
 
@@ -177,7 +179,7 @@ data:extend
   queue_stop,
   hold_position,
   queue_hold_position,
-  quick_unit_selection,
+  --quick_unit_selection,
   select_all_units,
   left_click,
   right_click,
