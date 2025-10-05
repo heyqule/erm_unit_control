@@ -2105,7 +2105,12 @@ local allow_selection =
   ["unit-spawner"] = true
 }
 
+local block_by_opened_gui = {
+  [defines.gui_type.blueprint_library] = true
+}
+
 local can_left_click = function(player, shift)
+  if block_by_opened_gui[player.opened_gui_type] then return end
   if not shift and player.render_mode == defines.render_mode.chart then return end
   if player.cursor_ghost then return end
   if player.selected and not allow_selection[player.selected.type] then return end
