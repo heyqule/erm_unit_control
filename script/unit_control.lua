@@ -1,5 +1,8 @@
 local util = require("script/script_util")
 local tool_names = names.unit_tools
+local HuntingMode = require("hunting_mode") -- ADD THIS
+local QRFMode = require("qrf_mode") -- ADD THIS
+local PerimeterMode = require("perimeter_mode") -- ADD THIS
 local script_data =
 {
   button_actions = {},
@@ -30,7 +33,10 @@ local next_command_type =
   idle = 4,
   attack = 5,
   follow = 6,
-  hold_position = 7
+  hold_position = 7, 
+  hunt = 8,
+  qrf = 9, 
+  perimeter = 10 
 }
 
 local script_events =
@@ -633,6 +639,8 @@ set_unit_idle = function(unit_data)
   unit_data.destination = nil
   unit_data.distraction = nil
   unit_data.target = nil
+  unit_data.mode = nil -- ADD THIS
+  unit_data.original_position = nil -- ADD THIS
   local unit = unit_data.entity
   if unit.type == "unit" then
     unit.ai_settings.do_separation = true
@@ -697,6 +705,123 @@ local hold_position_group = function(player, queue)
   end
   player.play_sound({path = tool_names.unit_move_sound})
 end
+
+-- =================================================================================
+-- MOVED THIS FUNCTION BLOCK FROM LINE 1470 TO HERE TO FIX "NIL VALUE" ERROR
+-- =================================================================================
+process_command_queue = function(unit_data, event)
+  local entity = unit_data.entity
+  if not (entity and entity.valid) then
+    if event then
+      script_data.units[event.unit_number] = nil
+    end
+    --game.print("Entity is nil?? Please save the game and report it to Klonan!")
+    return
+  end
+  local failed = (event and event.result == defines.behavior_result.fail)
+  --print("Processing command queue "..entity.unit_number.." Failure = "..tostring(result == defines.behavior_result.fail))
+
+  if failed then
+    unit_data.fail_count = (unit_data.fail_count or 0) + 1
+    if unit_data.fail_count < 5 then
+      if retry_command(unit_data) then
+        return
+      end
+    end
+  end
+
+  local command_queue = unit_data.command_queue
+  local next_command = command_queue[1]
+
+  if not (next_command) then
+    entity.ai_settings.do_separation = true
+    if not unit_data.idle then
+      set_unit_idle(unit_data)
+    end
+    return
+  end
+
+  local type = next_command.command_type
+
+  if type == next_command_type.move then
+    --print("Move")
+    set_command(unit_data, next_command)
+    unit_data.destination = next_command.destination
+    unit_data.distraction = next_command.distraction
+    table.remove(command_queue, 1)
+    return
+  end
+
+  if type == next_command_type.patrol then
+    --print("Patrol")
+    if next_command.destination_index == "initial" then
+      next_command.destinations[1] = entity.position
+      next_command.destination_index = 2
+    else
+      next_command.destination_index = next_command.destination_index + 1
+    end
+    local next_destination = next_command.destinations[next_command.destination_index]
+    if not next_destination then
+      next_command.destination_index = 1
+      next_destination = next_command.destinations[next_command.destination_index]
+    end
+    set_command(unit_data,
+    {
+      type = defines.command.go_to_location,
+      destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
+      radius = 1,
+      distraction = next_command.distraction
+    })
+    return
+  end
+
+  if type == next_command_type.attack then
+    return register_to_attack(unit_data)
+  end
+
+  if type == next_command_type.idle then
+    --print("Idle")
+    unit_data.command_queue = {}
+    return set_unit_idle(unit_data, true)
+  end
+
+  if type == next_command_type.scout then
+    --print("Scout")
+    return set_scout_command(unit_data, result == defines.behavior_result.fail)
+  end
+
+  -- ADD ALL OF THIS:
+  if type == next_command_type.hunt then
+    -- We pass the set_command and set_unit_idle functions from this file
+    -- to the hunting_mode.lua file, so it can call them.
+    return HuntingMode.update(unit_data, set_command, set_unit_idle)
+  end
+  
+  if type == next_command_type.qrf then
+    -- We pass this file's set_command function
+    return QRFMode.update(unit_data, set_command)
+  end
+
+  if type == next_command_type.perimeter then
+    -- We pass this file's set_command and set_unit_idle functions
+    return PerimeterMode.update(unit_data, set_command, set_unit_idle)
+  end
+  -- END OF ADDED SECTION
+
+  if type == next_command_type.follow then
+    --print("Follow")
+  end -- <--- THIS 'end' WAS MISSING
+
+  if type == next_command_type.hold_position then
+    --print("Hold position")
+    return set_command(unit_data, hold_position_command)
+  end
+
+end
+-- =================================================================================
+-- END OF MOVED BLOCK
+-- =================================================================================
+
 
 local gui_actions =
 {
@@ -767,6 +892,58 @@ local gui_actions =
     end
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
+  -- ADD ALL OF THIS:
+  hunt_button = function(event)
+    local group = get_selected_units(event.player_index)
+    if not group then return end
+    
+    local hunt_queue = {command_type = next_command_type.hunt}
+    local units = script_data.units
+    for unit_number, unit in pairs(group) do
+      local unit_data = units[unit_number]
+      unit_data.mode = "hunt"
+      unit_data.original_position = nil
+      unit_data.command_queue = {hunt_queue}
+      set_unit_not_idle(unit_data)
+      process_command_queue(unit_data) -- Start the command immediately
+    end
+    game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
+  end,
+
+  qrf_button = function(event)
+    local group = get_selected_units(event.player_index)
+    if not group then return end
+    
+    local qrf_queue = {command_type = next_command_type.qrf}
+    local units = script_data.units
+    for unit_number, unit in pairs(group) do
+      local unit_data = units[unit_number]
+      unit_data.mode = "qrf"
+      unit_data.original_position = unit.position -- Store current pos
+      unit_data.command_queue = {qrf_queue}
+      set_unit_not_idle(unit_data)
+      process_command_queue(unit_data) -- Start the command immediately
+    end
+    game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
+  end,
+
+  perimeter_button = function(event)
+    local group = get_selected_units(event.player_index)
+    if not group then return end
+    
+    local perimeter_queue = {command_type = next_command_type.perimeter}
+    local units = script_data.units
+    for unit_number, unit in pairs(group) do
+      local unit_data = units[unit_number]
+      unit_data.mode = "perimeter"
+      unit_data.original_position = unit.position -- Store current pos
+      unit_data.command_queue = {perimeter_queue}
+      set_unit_not_idle(unit_data)
+      process_command_queue(unit_data) -- Start the command immediately
+    end
+    game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
+  end,
+  -- END OF ADDED SECTION
   exit_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -868,7 +1045,12 @@ local button_map =
   --follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {tool_names.unit_follow_tool}},
   hold_position_button = {sprite = "utility/downloading", tooltip = {"hold-position"}},
   stop_button = {sprite = "utility/close_black", tooltip = {"stop"}, style = "shortcut_bar_button_small_red"},
-  scout_button = {sprite = "utility/map", tooltip = {"scout"}}
+  scout_button = {sprite = "utility/map", tooltip = {"scout"}},
+
+  -- ADD/UPDATE THESE THREE:
+  hunt_button = {sprite = "utility/center", tooltip = {"hunt-mode"}, style = "shortcut_bar_button_small_red"},
+  qrf_button = {sprite = "utility/downloading", tooltip = {"qrf-mode"}, style = "shortcut_bar_button_small_blue"},
+  perimeter_button = {sprite = "utility/refresh", tooltip = {"perimeter-mode"}, style = "shortcut_bar_button_small_green"}
 }
 
 local make_unit_gui = function(player)
@@ -928,7 +1110,7 @@ local make_unit_gui = function(player)
   end
 
   subfooter.add{type = "empty-widget"}.style.horizontally_stretchable = true
-  local butts = subfooter.add{type = "table", column_count = 6}
+  local butts = subfooter.add{type = "table", column_count = 10}
   for action, param in pairs (button_map) do
     local button = butts.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
     button.style.height = 24 * player.display_scale
@@ -1340,8 +1522,6 @@ local find_patrol_comand = function(queue)
   end
 end
 
-local process_command_queue
-
 local make_patrol_command = function(param)
   local origin = param.position
   local distraction = param.distraction or defines.distraction.by_anything
@@ -1626,98 +1806,10 @@ local on_entity_removed = function(event)
   deregister_unit(event.entity)
 end
 
-process_command_queue = function(unit_data, event)
-  local entity = unit_data.entity
-  if not (entity and entity.valid) then
-    if event then
-      script_data.units[event.unit_number] = nil
-    end
-    --game.print("Entity is nil?? Please save the game and report it to Klonan!")
-    return
-  end
-  local failed = (event and event.result == defines.behavior_result.fail)
-  --print("Processing command queue "..entity.unit_number.." Failure = "..tostring(result == defines.behavior_result.fail))
-
-  if failed then
-    unit_data.fail_count = (unit_data.fail_count or 0) + 1
-    if unit_data.fail_count < 5 then
-      if retry_command(unit_data) then
-        return
-      end
-    end
-  end
-
-  local command_queue = unit_data.command_queue
-  local next_command = command_queue[1]
-
-  if not (next_command) then
-    entity.ai_settings.do_separation = true
-    if not unit_data.idle then
-      set_unit_idle(unit_data)
-    end
-    return
-  end
-
-  local type = next_command.command_type
-
-  if type == next_command_type.move then
-    --print("Move")
-    set_command(unit_data, next_command)
-    unit_data.destination = next_command.destination
-    unit_data.distraction = next_command.distraction
-    table.remove(command_queue, 1)
-    return
-  end
-
-  if type == next_command_type.patrol then
-    --print("Patrol")
-    if next_command.destination_index == "initial" then
-      next_command.destinations[1] = entity.position
-      next_command.destination_index = 2
-    else
-      next_command.destination_index = next_command.destination_index + 1
-    end
-    local next_destination = next_command.destinations[next_command.destination_index]
-    if not next_destination then
-      next_command.destination_index = 1
-      next_destination = next_command.destinations[next_command.destination_index]
-    end
-    set_command(unit_data,
-    {
-      type = defines.command.go_to_location,
-      destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
-      radius = 1,
-      distraction = next_command.distraction
-    })
-    return
-  end
-
-  if type == next_command_type.attack then
-    return register_to_attack(unit_data)
-  end
-
-  if type == next_command_type.idle then
-    --print("Idle")
-    unit_data.command_queue = {}
-    return set_unit_idle(unit_data, true)
-  end
-
-  if type == next_command_type.scout then
-    --print("Scout")
-    return set_scout_command(unit_data, result == defines.behavior_result.fail)
-  end
-
-  if type == next_command_type.follow then
-    --print("Follow")
-    return unit_follow(unit_data)
-  end
-
-  if type == next_command_type.hold_position then
-    --print("Hold position")
-    return set_command(unit_data, hold_position_command)
-  end
-
-end
+-- THIS FUNCTION BLOCK WAS MOVED UP
+-- process_command_queue = function(unit_data, event)
+-- ...
+-- end
 
 local wants_enemy_attack =
 {
@@ -1776,10 +1868,18 @@ end
 
 local on_ai_command_completed = function(event)
   --game.print(event.tick.." - Ai command complete "..event.unit_number)
+  
+  --[[
+  -- DELETED THIS BLOCK: This was the source of the bug.
+  -- It was trapping units in a distraction loop and
+  -- preventing them from running our new mode logic.
   if event.was_distracted then
     process_distraction_completed(event)
     return
   end
+  ]]
+
+  -- NOW, all units (even if distracted) will run this logic:
   local unit_data = script_data.units[event.unit_number]
   if unit_data then
     return process_command_queue(unit_data, event)
