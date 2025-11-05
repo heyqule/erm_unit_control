@@ -1,5 +1,12 @@
 local HuntingMode = {}
 
+-- This table will store shared data for each group
+local group_hunt_data = {}
+-- How often (in ticks) a group can search for a NEW enemy
+local ENEMY_SEARCH_COOLDOWN = 60 -- 1 second (This is our new optimization)
+-- How often (in ticks) a group can search for a NEW patrol point
+local PATROL_COOLDOWN = 300 -- 5 seconds
+
 --[[
 Finds a patrol destination, prioritizing uncharted chunks.
 This is used to create a shared destination for the whole group.
@@ -58,24 +65,54 @@ If no enemy is found, it coordinates with the group to patrol.
 function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
   local unit = unit_data.entity
   if not (unit and unit.valid) then return end
+  
+  local group = unit_data.group
+  if not group then 
+    -- This unit is orphaned, stop hunting.
+    set_unit_idle_func(unit_data)
+    return 
+  end
 
-  local surface = unit.surface
-  local player_force = unit.force
+  -- Get or create the shared data for this group
+  if not group_hunt_data[group] then
+    group_hunt_data[group] = {
+      target = nil,
+      destination = nil,
+      next_enemy_search_tick = 0,
+      next_patrol_tick = 0
+    }
+  end
+  local data = group_hunt_data[group]
 
-  -- 1. Find nearby enemies
-  local target = surface.find_nearest_enemy({
-    position = unit.position,
-    max_distance = 5000, -- 5000-tile search radius
-    force = player_force
-  })
+  -- 1. Check for a valid, cached enemy target
+  local target = data.target
+  if target and not target.valid then
+    target = nil -- Target is dead, clear it
+    data.target = nil
+  end
+  
+  -- 2. If no target, and cooldown is over, search for one (ONE TIME for the group)
+  if not target and game.tick > data.next_enemy_search_tick then
+    -- THIS IS THE OPTIMIZATION:
+    -- This expensive call now only runs ONCE per second *per group*,
+    -- not per unit per command.
+    target = unit.surface.find_nearest_enemy({
+      position = unit.position,
+      max_distance = 5000, -- 5000-tile search radius
+      force = unit.force,
+      type = {"unit", "turret"} -- Added this filter from your other modes
+    })
+    
+    data.target = target
+    data.next_enemy_search_tick = game.tick + ENEMY_SEARCH_COOLDOWN -- Reset cooldown *after* search
+  end
 
+  -- 3. We now have a decision: Attack or Patrol
   if target then
-    -- 2. If enemy found, attack it.
-    -- We also clear any shared patrol destination so that
-    -- when the fight is over, they pick a new one.
-    if unit_data.group then
-      unit_data.group.hunt_patrol_dest = nil
-    end
+    -- 4. ENEMY FOUND: Attack it.
+    -- This is the *same logic* as your old, stable code.
+    data.destination = nil -- Clear any patrol destination
+    data.next_patrol_tick = 0
     
     set_command_func(unit_data, {
       type = defines.command.attack,
@@ -83,34 +120,20 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       distraction = defines.distraction.by_enemy
     })
   else
-    -- 3. No enemy found. Check for a shared group patrol destination.
-    local group = unit_data.group
-    if not group then 
-      -- This unit is orphaned (e.g. rest of group died), stop hunting.
-      set_unit_idle_func(unit_data) 
-      return
+    -- 5. NO ENEMY FOUND: Patrol.
+    -- This is also from your old code, but uses our new data cache.
+    
+    -- Check if we need a new patrol destination
+    if not data.destination or game.tick > data.next_patrol_tick then
+      data.destination = get_hunt_destination(unit)
+      data.next_patrol_tick = game.tick + PATROL_COOLDOWN
     end
-
-    local group_dest = group.hunt_patrol_dest
-    local dist_to_dest = 9999
-    if group_dest then
-      dist_to_dest = util.distance(unit.position, group_dest)
-    end
-
-    -- If no dest, or unit is close to old dest (less than 50 tiles), find a new one.
-    -- This makes one unit (the first to finish its command) the "leader"
-    if not group_dest or dist_to_dest < 50 then
-      group_dest = get_hunt_destination(unit)
-      group.hunt_patrol_dest = group_dest
-    end
-
-    -- 4. Issue an attack-move to the shared destination.
-    -- All units in the group will get this same 'group_dest'
-    -- The "distraction = by_anything" is the "attack any enemy on sight" part.
+    
+    -- Issue the patrol command
     set_command_func(unit_data, {
       type = defines.command.go_to_location,
-      destination = group_dest,
-      distraction = defines.distraction.by_anything,
+      destination = data.destination,
+      distraction = defines.distraction.by_anything, -- THIS IS THE AGGRESSIVE "ATTACK-MOVE" STANCE
       radius = 10 -- Arrive within a 10-tile radius (helps with clumping)
     })
   end

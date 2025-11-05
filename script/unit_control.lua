@@ -33,10 +33,10 @@ local next_command_type =
   idle = 4,
   attack = 5,
   follow = 6,
-  hold_position = 7, 
-  hunt = 8,
-  qrf = 9, 
-  perimeter = 10 
+  hold_position = 7,
+  hunt = 8, -- ADD THIS
+  qrf = 9, -- ADD THIS
+  perimeter = 10 -- ADD THIS
 }
 
 local script_events =
@@ -707,8 +707,17 @@ local hold_position_group = function(player, queue)
 end
 
 -- =================================================================================
--- MOVED THIS FUNCTION BLOCK FROM LINE 1470 TO HERE TO FIX "NIL VALUE" ERROR
+-- MOVED THIS FUNCTION UP TO FIX LOAD ORDER BUG
 -- =================================================================================
+local register_to_attack = function(unit_data)
+  insert(script_data.attack_register, unit_data)
+end
+-- =================================================================================
+
+-- =================================================================================
+-- MOVED THIS FUNCTION UP TO FIX LOAD ORDER BUG
+-- =================================================================================
+local process_command_queue
 process_command_queue = function(unit_data, event)
   local entity = unit_data.entity
   if not (entity and entity.valid) then
@@ -794,6 +803,7 @@ process_command_queue = function(unit_data, event)
   if type == next_command_type.hunt then
     -- We pass the set_command and set_unit_idle functions from this file
     -- to the hunting_mode.lua file, so it can call them.
+    -- REVERTED to 3-argument call to match our new (old) hunting_mode.lua
     return HuntingMode.update(unit_data, set_command, set_unit_idle)
   end
   
@@ -810,7 +820,7 @@ process_command_queue = function(unit_data, event)
 
   if type == next_command_type.follow then
     --print("Follow")
-  end -- <--- THIS 'end' WAS MISSING
+  end
 
   if type == next_command_type.hold_position then
     --print("Hold position")
@@ -819,7 +829,7 @@ process_command_queue = function(unit_data, event)
 
 end
 -- =================================================================================
--- END OF MOVED BLOCK
+-- END OF MOVED FUNCTIONS
 -- =================================================================================
 
 
@@ -1121,7 +1131,7 @@ local make_unit_gui = function(player)
   end
 end
 
-deregister_unit = function(entity)
+local deregister_unit = function(entity)
   if not (entity and entity.valid) then return end
   local unit_number = entity.unit_number
   if not unit_number then return end
@@ -1647,11 +1657,6 @@ local unit_follow = function(unit_data)
 
 end
 
-local register_to_attack = function(unit_data)
-  insert(script_data.attack_register, unit_data)
-end
-
-
 local make_attack_command = function(group, entities, append)
   if #entities == 0 then return end
   local script_data = script_data.units
@@ -1806,11 +1811,6 @@ local on_entity_removed = function(event)
   deregister_unit(event.entity)
 end
 
--- THIS FUNCTION BLOCK WAS MOVED UP
--- process_command_queue = function(unit_data, event)
--- ...
--- end
-
 local wants_enemy_attack =
 {
   [defines.distraction.by_enemy] = true,
@@ -1948,12 +1948,44 @@ local process_attack_register = function(tick)
       if targets then
         groups[targets] = groups[targets] or {}
         insert(groups[targets], unit_data)
+      else
+        -- This is for our new Hunting Mode
+        groups[unit_data.group] = groups[unit_data.group] or {}
+        insert(groups[unit_data.group], unit_data)
       end
     end
   end
 
   for entities, group in pairs (groups) do
-    bulk_attack_closest(entities, group)
+    -- 'entities' is either a list of targets OR a 'group' object
+    local target_list
+    if type(entities) == "table" then
+      target_list = entities
+    else
+      -- This is our hunting group. Find a nearby enemy.
+      local group_leader = next(group)
+      if group_leader and group_leader.entity and group_leader.entity.valid then
+        local target = group_leader.entity.surface.find_nearest_enemy({
+          position = group_leader.entity.position,
+          max_distance = 5000,
+          force = group_leader.entity.force,
+          type = {"unit", "turret"}
+        })
+        if target then
+          target_list = {target}
+        end
+      end
+    end
+    
+    if target_list then
+      bulk_attack_closest(target_list, group)
+    else
+      -- No enemies found, tell the group to process its queue
+      -- (which will make Hunting Mode patrol)
+      for k, unit_data in pairs (group) do
+        process_command_queue(unit_data)
+      end
+    end
   end
 
 end
