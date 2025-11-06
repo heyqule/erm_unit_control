@@ -98,9 +98,9 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
     -- not per unit per command.
     target = unit.surface.find_nearest_enemy({
       position = unit.position,
-      max_distance = 5000, -- 5000-tile search radius
-      force = unit.force,
-      type = {"unit", "turret"} -- Added this filter from your other modes
+      max_distance = 960, -- tile search radius
+      force = unit.force
+      -- REMOVED: type = {"unit", "turret"} -- This parameter is not valid for find_nearest_enemy
     })
     
     data.target = target

@@ -19,18 +19,14 @@ function QRFMode.update(unit_data, set_command_func)
   local player_force = unit.force
 
   -- Scan for enemies (units or turrets) within QRF range of the *original position*
-  local enemies = surface.find_entities_filtered({
-    area = {{original_pos.x - QRF_RANGE, original_pos.y - QRF_RANGE}, {original_pos.x + QRF_RANGE, original_pos.y + QRF_RANGE}},
-    force = "enemy", -- Finds all forces hostile to player_force
+  -- MODIFIED to use find_nearest_enemy, which respects all hostile forces (ERM compatible)
+  local target = surface.find_nearest_enemy({
+    position = original_pos, -- Search *from the origin*
+    max_distance = QRF_RANGE,
+    force = player_force, -- Finds all forces hostile to the player
     type = {"unit", "turret"} -- FIX: This filters out projectiles
   })
   
-  local target
-  if #enemies > 0 then
-    -- Find the closest enemy to the *unit*
-    target = surface.get_closest(unit.position, enemies)
-  end
-
   if target then
     -- Enemies found. Engage.
     set_command_func(unit_data, {

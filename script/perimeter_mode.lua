@@ -22,8 +22,8 @@ function PerimeterMode.update(unit_data, set_command_func, set_unit_idle_func)
   local target = surface.find_nearest_enemy({
     position = original_pos, -- Search *from the origin*
     max_distance = PERIMETER_RANGE,
-    force = player_force,
-    type = {"unit", "turret"} -- FIX: This filters out projectiles
+    force = player_force
+    -- REMOVED: type = {"unit", "turret"} -- This parameter is not valid for find_nearest_enemy
   })
 
   if target then
