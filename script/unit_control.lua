@@ -805,7 +805,7 @@ process_command_queue = function(unit_data, event)
     -- We pass the set_command and set_unit_idle functions from this file
     -- to the hunting_mode.lua file, so it can call them.
     -- REVERTED to 3-argument call to match our new (old) hunting_mode.lua
-    return HuntingMode.update(unit_data, set_command, set_unit_idle)
+    return HuntingMode.update(unit_data, set_command, set_unit_idle, event) -- ## MODIFIED: Pass 'event'
   end
   
   if type == next_command_type.qrf then

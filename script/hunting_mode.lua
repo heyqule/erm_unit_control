@@ -6,6 +6,11 @@ local group_hunt_data = {}
 local ENEMY_SEARCH_COOLDOWN = 60 -- 1 second
 -- How often (in ticks) a group can search for a NEW patrol point
 local PATROL_COOLDOWN = 300 -- 5 seconds
+-- How far to scan for local enemies to "finish the fight"
+local LOCAL_COMBAT_RANGE = 80 -- Same as QRF mode
+-- How long to pause *after combat* to let stragglers catch up
+local REGROUP_DURATION = 600 -- 10 seconds
+
 
 --[[
 Finds a patrol destination, prioritizing uncharted chunks.
@@ -73,12 +78,15 @@ function HuntingMode.register_attacker(unit_data, attacker)
       destination = nil,
       next_enemy_search_tick = 0,
       next_patrol_tick = 0,
-      aggro_target = nil -- Add new field
+      aggro_target = nil,
+      last_combat_tick = 0,
+      regroup_position = nil -- Add new field
     }
   end
   
   -- Set this attacker as the new high-priority target for the whole group
   group_hunt_data[group].aggro_target = attacker
+  group_hunt_data[group].regroup_position = attacker.position -- Log combat location
 end
 -- ===================================================================
 -- ## END OF NEW FUNCTION ##
@@ -87,20 +95,21 @@ end
 
 --[[
 This function is called by process_command_queue.
-It finds the nearest enemy and issues an attack command.
-If no enemy is found, it coordinates with the group to patrol.
+It prioritizes combat, then scouting.
 ]]
-function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
+function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, event) -- ## MODIFIED: Added 'event'
   local unit = unit_data.entity
   if not (unit and unit.valid) then return end
   
+  -- ## FIX: ADD THESE LINES ##
   local group = unit_data.group
   if not group then 
     -- This unit is orphaned, stop hunting.
     set_unit_idle_func(unit_data)
     return 
   end
-
+  -- ## END OF FIX ##
+  
   -- Get or create the shared data for this group
   if not group_hunt_data[group] then
     group_hunt_data[group] = {
@@ -108,13 +117,28 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       destination = nil,
       next_enemy_search_tick = 0,
       next_patrol_tick = 0,
-      aggro_target = nil -- Add new field
+      aggro_target = nil,
+      last_combat_tick = 0,
+      regroup_position = nil -- Add new field
     }
   end
   local data = group_hunt_data[group]
+  local unit_force = unit.force
 
   -- ================================================================
-  -- ## NEW PRIORITY 1: CHECK AGGRO TARGET ##
+  -- ## NEW BLOCK: Check if we just finished combat from a distraction ##
+  -- ================================================================
+  if event and event.was_distracted then
+    -- This unit was distracted by an enemy (from Priority 5's "attack-move").
+    -- This means it was just in combat.
+    data.last_combat_tick = game.tick
+    -- We don't know *what* it killed, but its current position is the combat area.
+    data.regroup_position = unit.position 
+  end
+  -- ================================================================
+
+  -- ================================================================
+  -- ## PRIORITY 1: AGGRO TARGET (Retaliation) ##
   -- This is the highest priority, from being attacked
   -- ================================================================
   local aggro_target = data.aggro_target
@@ -123,7 +147,8 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       -- We have a high-priority target from being attacked!
       data.target = nil -- Clear any *lower* priority search target
       data.destination = nil -- Clear any patrol destination
-      data.next_patrol_tick = 0
+      data.last_combat_tick = game.tick -- Mark that we are in combat
+      data.regroup_position = aggro_target.position -- Log combat location
       
       set_command_func(unit_data, {
         type = defines.command.attack,
@@ -132,63 +157,111 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       })
       return -- IMPORTANT: Skip all other logic
     else
-      -- The aggro target is dead or invalid, clear it so we can go back to normal logic
+      -- The aggro target is dead or invalid, clear it
       data.aggro_target = nil
     end
   end
-  -- ================================================================
-  -- (End of new priority check)
-  -- ================================================================
 
-
-  -- 1. Check for a valid, cached *search* target (This is now Priority 2)
-  local target = data.target
-  if target and not target.valid then
-    target = nil -- Target is dead, clear it
+  -- ================================================================
+  -- ## PRIORITY 2: 960-TILE SEARCH (Find Nests) ##
+  -- Check for large-scale targets
+  -- ================================================================
+  -- Check/clear cached target
+  if data.target and not data.target.valid then
     data.target = nil
   end
-  
-  -- 2. If no target, and cooldown is over, search for one (ONE TIME for the group)
-  if not target and game.tick > data.next_enemy_search_tick then
-    target = unit.surface.find_nearest_enemy({
-      position = unit.position,
-      -- Use vision_distance to only seek *visible* enemies
-      max_distance = unit.prototype.vision_distance, 
-      force = unit.force
-    })
-    
-    data.target = target
-    data.next_enemy_search_tick = game.tick + ENEMY_SEARCH_COOLDOWN -- Reset cooldown *after* search
-  end
 
-  -- 3. We now have a decision: Attack or Patrol
-  if target then
-    -- 4. VISIBLE ENEMY FOUND: Attack it.
+  -- If no cached target, and cooldown is over, search for one
+  if not data.target and game.tick > data.next_enemy_search_tick then
+    data.target = unit.surface.find_nearest_enemy({
+      position = unit.position,
+      max_distance = 960, 
+      force = unit_force
+    })
+    data.next_enemy_search_tick = game.tick + ENEMY_SEARCH_COOLDOWN
+  end
+  
+  -- If we found a distant target, attack it
+  if data.target then
     data.destination = nil -- Clear any patrol destination
-    data.next_patrol_tick = 0
+    data.last_combat_tick = game.tick -- Mark that we are in combat
+    data.regroup_position = data.target.position -- Log combat location
     
     set_command_func(unit_data, {
       type = defines.command.attack,
-      target = target,
+      target = data.target,
       distraction = defines.distraction.by_enemy
     })
-  else
-    -- 5. NO VISIBLE ENEMY FOUND: Patrol (Scout).
-    
-    -- Check if we need a new patrol destination
-    if not data.destination or game.tick > data.next_patrol_tick then
-      data.destination = get_hunt_destination(unit)
-      data.next_patrol_tick = game.tick + PATROL_COOLDOWN
-    end
-    
-    -- Issue the patrol command
-    set_command_func(unit_data, {
-      type = defines.command.go_to_location,
-      destination = data.destination,
-      distraction = defines.distraction.by_anything, -- "attack-move" stance
-      radius = 10
-    })
+    return
   end
+  
+  -- ================================================================
+  -- ## PRIORITY 3: LOCAL COMBAT SCAN (Finish the Fight) ##
+  -- This handles "attack-move" distractions and cleaning up
+  -- ================================================================
+  local nearby_enemy = unit.surface.find_nearest_enemy({
+    position = unit.position,
+    max_distance = LOCAL_COMBAT_RANGE,
+    force = unit_force
+  })
+  
+  if nearby_enemy then
+    -- Found a local enemy to clean up
+    data.destination = nil -- Clear any patrol destination
+    data.last_combat_tick = game.tick -- Mark that we are in combat
+    data.regroup_position = nearby_enemy.position -- Log combat location
+    
+    set_command_func(unit_data, {
+      type = defines.command.attack,
+      target = nearby_enemy,
+      distraction = defines.distraction.by_enemy
+    })
+    return
+  end
+  
+  -- ================================================================
+  -- ## PRIORITY 4: REGROUP PHASE (Wait for Stragglers) ##
+  -- No enemies found. If we were *just* in combat, pause and regroup.
+  -- ================================================================
+  if data.last_combat_tick > 0 and data.regroup_position then
+    if game.tick < data.last_combat_tick + REGROUP_DURATION then
+      -- We are in the 10-second regroup phase.
+      data.destination = nil -- Clear any old patrol destination
+      
+      -- Tell unit to go to the regroup spot and wait.
+      -- This forces stragglers to catch up and others to wait.
+      set_command_func(unit_data, {
+        type = defines.command.go_to_location,
+        destination = data.regroup_position,
+        distraction = defines.distraction.never, -- Don't get distracted
+        radius = 3 -- Cluster up tightly
+      })
+      return
+    else
+      -- Regroup time is over.
+      data.last_combat_tick = 0
+      data.regroup_position = nil
+    end
+  end
+
+  -- ================================================================
+  -- ## PRIORITY 5: PATROL (Scout) ##
+  -- No combat, no cooldown. Time to find a new place to scout.
+  -- ================================================================
+  
+  -- Check if we need a new patrol destination
+  if not data.destination or game.tick > data.next_patrol_tick then
+    data.destination = get_hunt_destination(unit)
+    data.next_patrol_tick = game.tick + PATROL_COOLDOWN
+  end
+  
+  -- Issue the patrol command
+  set_command_func(unit_data, {
+    type = defines.command.go_to_location,
+    destination = data.destination,
+    distraction = defines.distraction.by_anything, -- "attack-move" stance
+    radius = 5 -- Good compromise for large groups
+  })
 end
 
 return HuntingMode
