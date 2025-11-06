@@ -3,7 +3,7 @@ local HuntingMode = {}
 -- This table will store shared data for each group
 local group_hunt_data = {}
 -- How often (in ticks) a group can search for a NEW enemy
-local ENEMY_SEARCH_COOLDOWN = 60 -- 1 second (This is our new optimization)
+local ENEMY_SEARCH_COOLDOWN = 60 -- 1 second
 -- How often (in ticks) a group can search for a NEW patrol point
 local PATROL_COOLDOWN = 300 -- 5 seconds
 
@@ -57,6 +57,34 @@ local function get_hunt_destination(unit)
   return surface.find_non_colliding_position(unit.name, dest_pos, 0, 20) or dest_pos
 end
 
+-- ===================================================================
+-- ## NEW FUNCTION ##
+-- Called by unit_control.lua when a unit is damaged
+-- ===================================================================
+function HuntingMode.register_attacker(unit_data, attacker)
+  if not (unit_data and unit_data.group) then return end
+  
+  local group = unit_data.group
+  
+  -- Get or create the shared data for this group
+  if not group_hunt_data[group] then
+    group_hunt_data[group] = {
+      target = nil,
+      destination = nil,
+      next_enemy_search_tick = 0,
+      next_patrol_tick = 0,
+      aggro_target = nil -- Add new field
+    }
+  end
+  
+  -- Set this attacker as the new high-priority target for the whole group
+  group_hunt_data[group].aggro_target = attacker
+end
+-- ===================================================================
+-- ## END OF NEW FUNCTION ##
+-- ===================================================================
+
+
 --[[
 This function is called by process_command_queue.
 It finds the nearest enemy and issues an attack command.
@@ -79,12 +107,41 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
-      next_patrol_tick = 0
+      next_patrol_tick = 0,
+      aggro_target = nil -- Add new field
     }
   end
   local data = group_hunt_data[group]
 
-  -- 1. Check for a valid, cached enemy target
+  -- ================================================================
+  -- ## NEW PRIORITY 1: CHECK AGGRO TARGET ##
+  -- This is the highest priority, from being attacked
+  -- ================================================================
+  local aggro_target = data.aggro_target
+  if aggro_target then
+    if aggro_target.valid then
+      -- We have a high-priority target from being attacked!
+      data.target = nil -- Clear any *lower* priority search target
+      data.destination = nil -- Clear any patrol destination
+      data.next_patrol_tick = 0
+      
+      set_command_func(unit_data, {
+        type = defines.command.attack,
+        target = aggro_target,
+        distraction = defines.distraction.by_enemy
+      })
+      return -- IMPORTANT: Skip all other logic
+    else
+      -- The aggro target is dead or invalid, clear it so we can go back to normal logic
+      data.aggro_target = nil
+    end
+  end
+  -- ================================================================
+  -- (End of new priority check)
+  -- ================================================================
+
+
+  -- 1. Check for a valid, cached *search* target (This is now Priority 2)
   local target = data.target
   if target and not target.valid then
     target = nil -- Target is dead, clear it
@@ -93,14 +150,11 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
   
   -- 2. If no target, and cooldown is over, search for one (ONE TIME for the group)
   if not target and game.tick > data.next_enemy_search_tick then
-    -- THIS IS THE OPTIMIZATION:
-    -- This expensive call now only runs ONCE per second *per group*,
-    -- not per unit per command.
     target = unit.surface.find_nearest_enemy({
       position = unit.position,
-      max_distance = 960, -- tile search radius
+      -- Use vision_distance to only seek *visible* enemies
+      max_distance = unit.prototype.vision_distance, 
       force = unit.force
-      -- REMOVED: type = {"unit", "turret"} -- This parameter is not valid for find_nearest_enemy
     })
     
     data.target = target
@@ -109,8 +163,7 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
 
   -- 3. We now have a decision: Attack or Patrol
   if target then
-    -- 4. ENEMY FOUND: Attack it.
-    -- This is the *same logic* as your old, stable code.
+    -- 4. VISIBLE ENEMY FOUND: Attack it.
     data.destination = nil -- Clear any patrol destination
     data.next_patrol_tick = 0
     
@@ -120,8 +173,7 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
       distraction = defines.distraction.by_enemy
     })
   else
-    -- 5. NO ENEMY FOUND: Patrol.
-    -- This is also from your old code, but uses our new data cache.
+    -- 5. NO VISIBLE ENEMY FOUND: Patrol (Scout).
     
     -- Check if we need a new patrol destination
     if not data.destination or game.tick > data.next_patrol_tick then
@@ -133,8 +185,8 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func)
     set_command_func(unit_data, {
       type = defines.command.go_to_location,
       destination = data.destination,
-      distraction = defines.distraction.by_anything, -- THIS IS THE AGGRESSIVE "ATTACK-MOVE" STANCE
-      radius = 10 -- Arrive within a 10-tile radius (helps with clumping)
+      distraction = defines.distraction.by_anything, -- "attack-move" stance
+      radius = 10
     })
   end
 end

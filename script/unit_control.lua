@@ -641,6 +641,7 @@ set_unit_idle = function(unit_data)
   unit_data.target = nil
   unit_data.mode = nil -- ADD THIS
   unit_data.original_position = nil -- ADD THIS
+  unit_data.aggro_target = nil -- ADD THIS
   local unit = unit_data.entity
   if unit.type == "unit" then
     unit.ai_settings.do_separation = true
@@ -913,6 +914,7 @@ local gui_actions =
       local unit_data = units[unit_number]
       unit_data.mode = "hunt"
       unit_data.original_position = nil
+      unit_data.aggro_target = nil -- Make sure to init this
       unit_data.command_queue = {hunt_queue}
       set_unit_not_idle(unit_data)
       process_command_queue(unit_data) -- Start the command immediately
@@ -1811,6 +1813,52 @@ local on_entity_removed = function(event)
   deregister_unit(event.entity)
 end
 
+-- ===================================================================
+-- ## NEW FUNCTION ##
+-- This handles the high-priority retaliation logic
+-- ===================================================================
+local function on_entity_damaged(event)
+  local entity = event.entity
+  if not (entity and entity.valid) then return end
+  
+  local unit_data = script_data.units[entity.unit_number]
+  -- Check if it's our unit and in hunt mode
+  if not (unit_data and unit_data.mode == "hunt") then
+    return
+  end
+  
+  local cause = event.cause
+  -- Check if the cause is a valid entity
+  if not (cause and cause.object_name == "LuaEntity" and cause.valid) then
+    return
+  end
+  
+  -- Check if the cause is an enemy
+  local unit_force = entity.force
+  local cause_force = cause.force
+  if not cause_force or unit_force == cause_force or unit_force.get_cease_fire(cause_force) then
+    -- Not an enemy (same force, or allied/ceasefire)
+    return
+  end
+  
+  -- We have a valid attacker!
+  
+  -- 1. Tell the HuntingMode module to set this as the *group's* high-priority target
+  HuntingMode.register_attacker(unit_data, cause)
+  
+  -- 2. Force the unit that was *hit* to react *immediately*
+  -- This is high-priority and interrupts its current command
+  set_command(unit_data, {
+    type = defines.command.attack,
+    target = cause,
+    distraction = defines.distraction.by_enemy -- Allow it to be distracted by *other* enemies too
+  })
+end
+-- ===================================================================
+-- ## END OF NEW FUNCTION ##
+-- ===================================================================
+
+
 local wants_enemy_attack =
 {
   [defines.distraction.by_enemy] = true,
@@ -2382,6 +2430,9 @@ unit_control.events =
   [defines.events.on_robot_mined_entity] = on_entity_removed,
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.script_raised_destroy] = on_entity_removed,
+  
+  -- ## ADDED THIS EVENT ##
+  [defines.events.on_entity_damaged] = on_entity_damaged,
 
   [defines.events.on_ai_command_completed] = on_ai_command_completed,
   [defines.events.on_unit_added_to_group] = on_unit_added_to_group,
