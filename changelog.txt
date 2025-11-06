@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.4
-Date: 2025-11-05
+Date: 2025-11-06
 
   Features:
     - Added Hunting Mode (Aggressive Mode, continuously search and destroy enemy units)
