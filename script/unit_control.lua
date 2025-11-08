@@ -20,7 +20,8 @@ local script_data =
   last_right_click_position = nil,
   target_indicators = {},
   attack_register = {},
-  last_location = {}
+  last_location = {},
+  group_hunt_data = {}, 
 }
 
 local empty_position = {0,0}

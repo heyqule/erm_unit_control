@@ -1,7 +1,8 @@
 local HuntingMode = {}
+local storage = storage -- <-- FIX: Get reference to global storage
 
 -- This table will store shared data for each group
-local group_hunt_data = {}
+-- local group_hunt_data = {} -- <-- FIX: Removed this local table
 -- How often (in ticks) a group can search for a NEW enemy
 local ENEMY_SEARCH_COOLDOWN = 60 -- 1 second
 -- How often (in ticks) a group can search for a NEW patrol point
@@ -72,8 +73,9 @@ function HuntingMode.register_attacker(unit_data, attacker)
   local group = unit_data.group
   
   -- Get or create the shared data for this group
-  if not group_hunt_data[group] then
-    group_hunt_data[group] = {
+  -- FIX: Changed 'group_hunt_data' to 'storage.unit_control.group_hunt_data'
+  if not storage.unit_control.group_hunt_data[group] then
+    storage.unit_control.group_hunt_data[group] = {
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
@@ -85,8 +87,9 @@ function HuntingMode.register_attacker(unit_data, attacker)
   end
   
   -- Set this attacker as the new high-priority target for the whole group
-  group_hunt_data[group].aggro_target = attacker
-  group_hunt_data[group].regroup_position = attacker.position -- Log combat location
+  -- FIX: Changed 'group_hunt_data' to 'storage.unit_control.group_hunt_data'
+  storage.unit_control.group_hunt_data[group].aggro_target = attacker
+  storage.unit_control.group_hunt_data[group].regroup_position = attacker.position -- Log combat location
 end
 -- ===================================================================
 -- ## END OF NEW FUNCTION ##
@@ -111,8 +114,9 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
   -- ## END OF FIX ##
   
   -- Get or create the shared data for this group
-  if not group_hunt_data[group] then
-    group_hunt_data[group] = {
+  -- FIX: Changed 'group_hunt_data' to 'storage.unit_control.group_hunt_data'
+  if not storage.unit_control.group_hunt_data[group] then
+    storage.unit_control.group_hunt_data[group] = {
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
@@ -122,7 +126,8 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
       regroup_position = nil -- Add new field
     }
   end
-  local data = group_hunt_data[group]
+  -- FIX: Changed 'group_hunt_data' to 'storage.unit_control.group_hunt_data'
+  local data = storage.unit_control.group_hunt_data[group]
   local unit_force = unit.force
 
   -- ================================================================
