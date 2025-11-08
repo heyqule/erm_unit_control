@@ -8,7 +8,7 @@ This function is called by process_command_queue.
 It scans for enemies. If found, it attacks.
 If not found, it returns to its post and waits.
 ]]
-function QRFMode.update(unit_data, set_command_func)
+function QRFMode.update(unit_data, set_command_func) -- Receives 'set_command' as 'set_command_func'
   local unit = unit_data.entity
   if not (unit and unit.valid) then return end
 
@@ -19,16 +19,16 @@ function QRFMode.update(unit_data, set_command_func)
   local player_force = unit.force
 
   -- Scan for enemies (units or turrets) within QRF range of the *original position*
-  -- MODIFIED to use find_nearest_enemy, which respects all hostile forces (ERM compatible)
   local target = surface.find_nearest_enemy({
     position = original_pos, -- Search *from the origin*
     max_distance = QRF_RANGE,
-    force = player_force, -- Finds all forces hostile to the player
-    type = {"unit", "turret"} -- FIX: This filters out projectiles
+    force = player_force -- Finds all forces hostile to the player
+    -- REMOVED: type = {"unit", "turret"} -- This parameter is not valid for find_nearest_enemy
   })
   
   if target then
     -- Enemies found. Engage.
+    -- Use 'set_command_func' here
     set_command_func(unit_data, {
       type = defines.command.attack,
       target = target,
@@ -40,6 +40,7 @@ function QRFMode.update(unit_data, set_command_func)
     
     if distance_from_origin > 5 then
       -- Not at post. Return to origin.
+      -- Use 'set_command_func' here
       set_command_func(unit_data, {
         type = defines.command.go_to_location,
         destination = original_pos,
@@ -48,6 +49,7 @@ function QRFMode.update(unit_data, set_command_func)
     else
       -- At post. Wait for a bit before scanning again.
       -- This creates the "scan loop".
+      -- Use 'set_command_func' here (This is the area of line 51)
       set_command_func(unit_data, {
         type = defines.command.stop,
         ticks_to_wait = SCAN_INTERVAL

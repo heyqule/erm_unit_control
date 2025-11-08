@@ -3,6 +3,44 @@ local tool_names = names.unit_tools
 local HuntingMode = require("hunting_mode") -- ADD THIS
 local QRFMode = require("qrf_mode") -- ADD THIS
 local PerimeterMode = require("perimeter_mode") -- ADD THIS
+
+-- ===================================================================
+-- ## ADDED FOR ON_LOAD FIX ##
+-- We must re-define the hotkey names here because
+-- this file is loaded in the control phase, and on_load
+-- does not re-run the data phase (hotkeys.lua).
+-- This ensures names.hotkeys is populated even on existing saves.
+-- ===================================================================
+if not names.hotkeys then names.hotkeys = {} end
+local hotkeys = names.hotkeys
+
+for i = 0, 9 do
+  local key_num_str = tostring(i)
+  hotkeys["select_control_group_" .. key_num_str] = "erm-unit-control-select_control_group_" .. key_num_str
+  hotkeys["set_control_group_" .. key_num_str] = "erm-unit-control-set_control_group_" .. key_num_str
+end
+-- ===================================================================
+-- ## END OF ON_LOAD FIX ##
+-- ===================================================================
+
+-- ===================================================================
+-- ## NEW ON_LOAD_FIX FOR UNIT TOOLS ##
+-- ===================================================================
+if not names.unit_tools then names.unit_tools = {} end
+-- We must re-define these keys just like we do for hotkeys,
+-- otherwise 'tool_names' will be nil when loading a save.
+names.unit_tools.unit_attack_move_tool = "unit_attack_move_tool"
+names.unit_tools.unit_move_tool = "unit_move_tool"
+names.unit_tools.unit_patrol_tool = "unit_patrol_tool"
+names.unit_tools.unit_selection_tool = "select-units" -- FIX 1: Was "unit_selection_tool"
+names.unit_tools.unit_attack_tool = "unit_attack_tool"
+names.unit_tools.unit_force_attack_tool = "unit_force_attack_tool"
+names.unit_tools.unit_follow_tool = "unit_follow_tool"
+names.unit_tools.unit_move_sound = "utility/confirm" -- <-- CRASH FIX: Was "unit_move_sound"
+-- ===================================================================
+-- ## END OF NEW FIX ##
+-- ===================================================================
+
 local script_data =
 {
   button_actions = {},
@@ -22,6 +60,7 @@ local script_data =
   attack_register = {},
   last_location = {},
   group_hunt_data = {}, 
+  control_groups = {}, -- ADDED FOR CONTROL GROUPS
 }
 
 local empty_position = {0,0}
@@ -957,6 +996,67 @@ local gui_actions =
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
   -- END OF ADDED SECTION
+
+  -- ===================================================================
+  -- ## NEW CONTROL GROUP GUI ACTION ##
+  -- ===================================================================
+  control_group_button = function(event, action)
+    local player = game.get_player(event.player_index)
+    if not player then return end
+    
+    local group_number = action.group_number
+
+    if event.shift then
+      -- Additive selection (Shift-click)
+      local player_index = player.index
+      local group_units_list = script_data.control_groups[player_index] and script_data.control_groups[player_index][group_number]
+      if not group_units_list then return end -- Group is empty
+
+      -- Get currently selected units
+      local current_selection_map = get_selected_units(player_index) or {}
+      
+      local all_units = script_data.units
+      local valid_units_to_select_map = {}
+
+      -- 1. Add currently selected units to our map
+      for unit_number, entity in pairs(current_selection_map) do
+        if entity and entity.valid then
+          valid_units_to_select_map[unit_number] = entity
+        end
+      end
+
+      -- 2. Add new group's units to our map (handles duplicates)
+      for _, unit_number in pairs(group_units_list) do
+        local unit_data = all_units[unit_number]
+        if unit_data and unit_data.entity and unit_data.entity.valid then
+          valid_units_to_select_map[unit_number] = unit_data.entity
+        end
+      end
+
+      -- 3. Convert map back to a list for processing
+      local entities_list = {}
+      for unit_number, entity in pairs(valid_units_to_select_map) do
+        table.insert(entities_list, entity)
+      end
+      
+      -- 4. Clear current selection (but don't destroy GUI)
+      clear_selected_units(player)
+      
+      -- 5. Process the new combined selection
+      if #entities_list > 0 then
+        process_unit_selection(entities_list, player)
+      end
+
+    else
+      -- Regular selection (Left-click)
+      -- We can just call the existing hotkey function
+      select_control_group({player_index = player.index}, group_number)
+    end
+  end,
+  -- ===================================================================
+  -- ## END OF NEW ACTION ##
+  -- ===================================================================
+
   exit_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -1050,20 +1150,20 @@ local button_map =
 
 local button_map =
 {
-  move_button = {sprite = "utility/mod_dependency_arrow", tooltip = {tool_names.unit_move_tool}, style = "shortcut_bar_button_small_green"},
-  patrol_button = {sprite = "utility/refresh", tooltip = {tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
-  attack_move_button = {sprite = "utility/center", tooltip = {tool_names.unit_attack_move_tool}},
+  move_button = {sprite = "utility/mod_dependency_arrow", tooltip = {"tooltip." .. tool_names.unit_move_tool}, style = "shortcut_bar_button_small_green"},
+  patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
+  attack_move_button = {sprite = "utility/center", tooltip = {"tooltip." .. tool_names.unit_attack_move_tool}},
   --attack_button = {sprite = "item/"..tool_names.unit_attack_tool, tooltip = {tool_names.unit_attack_tool}},
   --force_attack_button = {sprte = "item/"..tool_names.unit_force_attack_tool, tooltip = {tool_names.unit_force_attack_tool}},
   --follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {tool_names.unit_follow_tool}},
-  hold_position_button = {sprite = "utility/downloading", tooltip = {"hold-position"}},
-  stop_button = {sprite = "utility/close_black", tooltip = {"stop"}, style = "shortcut_bar_button_small_red"},
-  scout_button = {sprite = "utility/map", tooltip = {"scout"}},
+  hold_position_button = {sprite = "utility/downloading", tooltip = {"custom-input-name.hold-position"}},
+  stop_button = {sprite = "utility/close_black", tooltip = {"custom-input-name.stop"}, style = "shortcut_bar_button_small_red"},
+  scout_button = {sprite = "utility/map", tooltip = {"custom-input-name.scout"}},
 
   -- ADD/UPDATE THESE THREE:
-  hunt_button = {sprite = "utility/center", tooltip = {"hunt-mode"}, style = "shortcut_bar_button_small_red"},
-  qrf_button = {sprite = "utility/downloading", tooltip = {"qrf-mode"}, style = "shortcut_bar_button_small_blue"},
-  perimeter_button = {sprite = "utility/refresh", tooltip = {"perimeter-mode"}, style = "shortcut_bar_button_small_green"}
+  hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
+  qrf_button = {sprite = "utility/downloading", tooltip = {"gui.qrf-mode"}, style = "shortcut_bar_button_small_blue"},
+  perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
 }
 
 local make_unit_gui = function(player)
@@ -1091,7 +1191,7 @@ local make_unit_gui = function(player)
 
   frame.clear()
   local header_flow = frame.add{type = "flow", direction = "horizontal"}
-  local label = header_flow.add{type = "label", caption = {"unit-control"}--[[, style = "heading_1_label"]]}
+  local label = header_flow.add{type = "label", caption = {"gui.unit-control"}--[[, style = "heading_1_label"]]}
   label.drag_target = frame
   local pusher = header_flow.add{type = "empty-widget", direction = "horizontal", style = "draggable_space_header"}
   pusher.style.horizontally_stretchable = true
@@ -1102,6 +1202,62 @@ local make_unit_gui = function(player)
   exit_button.style.width = 24
 
   util.register_gui(script_data.button_actions, exit_button, {type = "exit_button"})
+
+  -- ===================================================================
+  -- ## NEW: DRAW CONTROL GROUP BUTTONS ##
+  -- ===================================================================
+  local player_control_groups = script_data.control_groups[index] or {}
+  local all_units_data = script_data.units
+  local has_control_groups = false
+  local control_group_data_for_gui = {}
+
+  -- We check 1-10 (10 maps to 0)
+  for i = 1, 10 do
+    local unit_list = player_control_groups[i]
+    if unit_list and #unit_list > 0 then
+      local valid_count = 0
+      -- Clean the group to get an accurate count
+      for _, unit_number in pairs(unit_list) do
+        local unit_data = all_units_data[unit_number]
+        if unit_data and unit_data.entity and unit_data.entity.valid then
+          valid_count = valid_count + 1
+        end
+      end
+      
+      if valid_count > 0 then
+        has_control_groups = true
+        table.insert(control_group_data_for_gui, {number = i, count = valid_count})
+      end
+    end
+  end
+
+  if has_control_groups then
+    local cg_frame = frame.add{type="frame", style="inside_deep_frame", direction="vertical"}
+    local cg_table = cg_frame.add{type="table", column_count=10, style="filter_slot_table"}
+    
+    for _, data in pairs(control_group_data_for_gui) do
+      local group_number = data.number -- This is 1-10
+      local group_count = data.count
+      
+      -- Map 10 back to 0 for signal icon and locale key
+      local signal_number = (group_number == 10) and 0 or group_number 
+      
+      local signal_sprite = "virtual-signal/signal-" .. signal_number -- FIX: Was "signal/signal_"
+      local signal_tooltip = {"custom-input-name.erm-unit-control-select_control_group_" .. signal_number}
+
+      local button = cg_table.add{
+        type = "sprite-button",
+        sprite = signal_sprite,
+        number = group_count,
+        tooltip = signal_tooltip,
+        style = "slot_button"
+      }
+      util.register_gui(script_data.button_actions, button, {type = "control_group_button", group_number = group_number})
+    end
+  end
+  -- ===================================================================
+  -- ## END OF NEW SECTION ##
+  -- ===================================================================
 
   local map = {}
   for unit_number, ent in pairs (group) do
@@ -1148,7 +1304,20 @@ local deregister_unit = function(entity)
   if group then
     --game.print("Deregistered unit from group")
     group[unit_number] = nil
-    --if table_size(group) == 0 then
+    
+    -- ================================================
+    -- ## ADDED THIS BLOCK TO PREVENT MEMORY LEAK ##
+    -- ================================================
+    if not next(group) then -- Check if the group is now empty
+      -- If group is empty, clean up shared data for all modes
+      if script_data.group_hunt_data and script_data.group_hunt_data[group] then
+         script_data.group_hunt_data[group] = nil
+      end
+      -- Add cleanup for any future group data tables here
+    end
+    -- ================================================
+    -- ## END OF NEW BLOCK ##
+    -- ================================================
   end
   local player_index = unit.player
   if not player_index then
@@ -1225,7 +1394,7 @@ local check_refresh_gui = function()
   script_data.marked_for_refresh = {}
 end
 
-local process_unit_selection = function(entities, player)
+process_unit_selection = function(entities, player) -- FIX: Removed 'local'
   player.clear_cursor()
   local player_index = player.index
   local map = script_data.unit_unselectable
@@ -1265,8 +1434,22 @@ local process_unit_selection = function(entities, player)
     frame = player.gui.screen.add{type = "frame", direction = "vertical"}
     local width = (12 + 400 + 12) * player.display_scale
     local size = player.display_resolution
+
+    -- Check if player has groups to determine extra height
+    local extra_height = 0
+    local player_control_groups = script_data.control_groups[player_index]
+    if player_control_groups and next(player_control_groups) then
+      -- Player has at least one group, check if any are valid
+      for i = 1, 10 do
+         if player_control_groups[i] and #player_control_groups[i] > 0 then
+            extra_height = 40 -- Add height for one row of buttons
+            break
+         end
+      end
+    end
+
     local x_position = (size.width / 2) -  (width / 2)
-    local y_position = size.height  - ((200 + (math.ceil(table_size(types) / 10) * 40)) * player.display_scale)
+    local y_position = size.height  - ((200 + extra_height + (math.ceil(table_size(types) / 10) * 40)) * player.display_scale)
     if script_data.last_location[player_index] then
       frame.location = script_data.last_location[player_index]
     else
@@ -1280,7 +1463,7 @@ local process_unit_selection = function(entities, player)
   check_refresh_gui()
 end
 
-local clear_selected_units = function(player)
+clear_selected_units = function(player) -- FIX: Removed 'local'
   local units = script_data.units
   local group = get_selected_units(player.index)
   if not group then return end
@@ -2265,6 +2448,90 @@ local select_all_units_hotkey = function(event)
 
 end
 
+-- ===================================================================
+-- ## NEW FUNCTIONS FOR CONTROL GROUPS ##
+-- ===================================================================
+
+local set_control_group = function(event, group_number)
+  local player_index = event.player_index
+  local player = game.get_player(player_index)
+  if not player then return end
+
+  -- Ensure the player's root control group table exists
+  script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
+  
+  local selected = get_selected_units(player_index)
+  
+  if not selected then
+    -- No units selected, clear the control group (standard RTS behavior)
+    script_data.control_groups[player_index][group_number] = nil
+    player.play_sound({path = "utility/cannot_build"}) -- Sound for clearing
+    return
+  end
+  
+  local unit_numbers_list = {}
+  for unit_number, entity in pairs(selected) do
+    table.insert(unit_numbers_list, unit_number)
+  end
+  
+  -- Store the list of unit numbers
+  script_data.control_groups[player_index][group_number] = unit_numbers_list
+  player.play_sound({path = "utility/confirm"}) -- Sound for setting
+end
+
+-- FIX 2: Remove 'local' to make the function global
+select_control_group = function(event, group_number)
+  local player_index = event.player_index
+  local player = game.get_player(player_index)
+  if not player then return end
+
+  -- Check if the player or the specific group exists
+  if not script_data.control_groups[player_index] or not script_data.control_groups[player_index][group_number] then
+    player.play_sound({path = "utility/cannot_build"}) -- Sound for empty group
+    return
+  end
+
+  local unit_numbers_list = script_data.control_groups[player_index][group_number]
+  if not unit_numbers_list or #unit_numbers_list == 0 then
+    player.play_sound({path = "utility/cannot_build"})
+    return
+  end
+
+  local all_units = script_data.units
+  local entities_to_select = {}
+  local valid_unit_numbers = {} -- For cleaning dead units from the group
+
+  for _, unit_number in pairs(unit_numbers_list) do
+    local unit_data = all_units[unit_number]
+    -- Check if unit still exists in our mod and is valid in game
+    if unit_data and unit_data.entity and unit_data.entity.valid then
+      table.insert(entities_to_select, unit_data.entity)
+      table.insert(valid_unit_numbers, unit_number)
+    end
+  end
+
+  -- Auto-clean the group
+  script_data.control_groups[player_index][group_number] = valid_unit_numbers
+
+  -- Deselect any units the player currently has selected
+  clear_selected_units(player)
+
+  if #entities_to_select > 0 then
+    -- Select the units and open the GUI
+    process_unit_selection(entities_to_select, player)
+  else
+    -- Group was full of dead units and is now empty
+    script_data.control_groups[player_index][group_number] = nil -- Clear the empty group
+    script_data.marked_for_refresh[player_index] = true -- Close GUI if open
+    player.play_sound({path = "utility/cannot_build"})
+  end
+end
+
+-- ===================================================================
+-- ## END OF NEW FUNCTIONS ##
+-- ===================================================================
+
+
 remote.add_interface("__erm_unit_control__", {
   register_unit_unselectable = function(entity_name)
     script_data.unit_unselectable[entity_name] = true
@@ -2460,10 +2727,42 @@ unit_control.events =
   ["right-click"] = right_click,
   ["shift-right-click"] = shift_right_click,
   [names.hotkeys.select_all_units] = select_all_units_hotkey,
+
+  -- ===================================================================
+  -- ## ADDED HOTKEY EVENTS FOR CONTROL GROUPS ##
+  -- ===================================================================
+  [names.hotkeys.set_control_group_1] = function(e) set_control_group(e, 1) end,
+  [names.hotkeys.set_control_group_2] = function(e) set_control_group(e, 2) end,
+  [names.hotkeys.set_control_group_3] = function(e) set_control_group(e, 3) end,
+  [names.hotkeys.set_control_group_4] = function(e) set_control_group(e, 4) end,
+  [names.hotkeys.set_control_group_5] = function(e) set_control_group(e, 5) end,
+  [names.hotkeys.set_control_group_6] = function(e) set_control_group(e, 6) end,
+  [names.hotkeys.set_control_group_7] = function(e) set_control_group(e, 7) end,
+  [names.hotkeys.set_control_group_8] = function(e) set_control_group(e, 8) end,
+  [names.hotkeys.set_control_group_9] = function(e) set_control_group(e, 9) end,
+  [names.hotkeys.set_control_group_0] = function(e) set_control_group(e, 10) end, -- 0 maps to 10
+  
+  [names.hotkeys.select_control_group_1] = function(e) select_control_group(e, 1) end,
+  [names.hotkeys.select_control_group_2] = function(e) select_control_group(e, 2) end,
+  [names.hotkeys.select_control_group_3] = function(e) select_control_group(e, 3) end,
+  [names.hotkeys.select_control_group_4] = function(e) select_control_group(e, 4) end,
+  [names.hotkeys.select_control_group_5] = function(e) select_control_group(e, 5) end,
+  [names.hotkeys.select_control_group_6] = function(e) select_control_group(e, 6) end,
+  [names.hotkeys.select_control_group_7] = function(e) select_control_group(e, 7) end,
+  [names.hotkeys.select_control_group_8] = function(e) select_control_group(e, 8) end,
+  [names.hotkeys.select_control_group_9] = function(e) select_control_group(e, 9) end,
+  [names.hotkeys.select_control_group_0] = function(e) select_control_group(e, 10) end, -- 0 maps to 10
+  -- ===================================================================
+  -- ## END OF NEW HOTKEY EVENTS ##
+  -- ===================================================================
 }
 
 unit_control.on_init = function()
   storage.unit_control = storage.unit_control or script_data
+  -- Ensure new tables for migration
+  storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
+  storage.unit_control.control_groups = storage.unit_control.control_groups or {}
+  
   set_map_settings()
 end
 
@@ -2474,6 +2773,7 @@ unit_control.on_configuration_changed = function(configuration_changed_data)
 
   -- FIX: Ensure new tables exist for migrations
   script_data.group_hunt_data = script_data.group_hunt_data or {}
+  script_data.control_groups = script_data.control_groups or {} -- ADDED FOR MIGRATION
 
   set_map_settings()
   reset_rendering()

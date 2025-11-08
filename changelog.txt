@@ -1,11 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.4
-Date: 2025-11-06
+Date: 2025-11-09
 
   Features:
     - Added Hunting Mode (Aggressive Mode, continuously search and destroy enemy units)
     - Added QRF (Quick Reaction Force) Mode, stay in position and automatically engange enemy units within close range
     - Added Perimeter Mode, stay in position and automatically engange enemy units within long range (mostly to clear expansions)
+    - Added Control Groups function
 
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.3
