@@ -1,5 +1,5 @@
 local HuntingMode = {}
-local storage = storage -- <-- FIX: Get reference to global storage
+-- local storage = storage -- <-- FIX: Get reference to global storage <-- REMOVED THIS LINE
 
 -- This table will store shared data for each group
 -- local group_hunt_data = {} -- <-- FIX: Removed this local table
