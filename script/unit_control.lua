@@ -2468,13 +2468,24 @@ unit_control.on_init = function()
 end
 
 unit_control.on_configuration_changed = function(configuration_changed_data)
+  -- FIX: Add initialization here for when mod is added to existing save
+  storage.unit_control = storage.unit_control or script_data
+  script_data = storage.unit_control
+
+  -- FIX: Ensure new tables exist for migrations
+  script_data.group_hunt_data = script_data.group_hunt_data or {}
+
   set_map_settings()
   reset_rendering()
   script_data.last_location = script_data.last_location or {}
 end
 
 unit_control.on_load = function()
-  script_data = storage.unit_control or script_data
+  -- This function MUST NOT modify the 'storage' table.
+  -- It only points our file's 'script_data' variable to the loaded data.
+  -- All migration logic is handled in on_configuration_changed,
+  -- which Factorio runs automatically when needed.
+  script_data = storage.unit_control
 end
 
 return unit_control
