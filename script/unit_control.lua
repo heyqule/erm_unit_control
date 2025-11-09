@@ -1442,8 +1442,18 @@ process_unit_selection = function(entities, player) -- FIX: Removed 'local'
       -- Player has at least one group, check if any are valid
       for i = 1, 10 do
          if player_control_groups[i] and #player_control_groups[i] > 0 then
-            extra_height = 40 -- Add height for one row of buttons
-            break
+            -- Check for at least one valid unit
+            local has_valid_unit = false
+            for _, unit_num in pairs(player_control_groups[i]) do
+              if script_data.units[unit_num] and script_data.units[unit_num].entity and script_data.units[unit_num].entity.valid then
+                has_valid_unit = true
+                break
+              end
+            end
+            if has_valid_unit then
+              extra_height = 40 -- Add height for one row of buttons
+              break
+            end
          end
       end
     end
@@ -1991,11 +2001,43 @@ local on_gui_click = function(event)
   end
 end
 
+-- ===================================================================
+-- ## START GUI REFRESH FIX ##
+-- ===================================================================
 local on_entity_removed = function(event)
   local entity = event.entity
+  if not (entity and entity.valid) then return end
+  local unit_number = entity.unit_number
+  if not unit_number then return end
+
   script_data.target_indicators[get_unit_number(entity)] = nil
-  deregister_unit(event.entity)
+  
+  -- NEW LOGIC: Check if this unit was in any control group
+  for player_index, player_groups in pairs(script_data.control_groups) do
+    if get_frame(player_index) then -- Only check if this player's GUI is open
+      local group_changed = false
+      for group_id, unit_list in pairs(player_groups) do
+        for i = #unit_list, 1, -1 do -- Iterate backwards
+          if unit_list[i] == unit_number then
+            -- We don't need to remove it (select_control_group auto-cleans)
+            -- We just need to flag for a refresh.
+            group_changed = true
+            break
+          end
+        end
+        if group_changed then break end
+      end
+      if group_changed then
+        script_data.marked_for_refresh[player_index] = true
+      end
+    end
+  end
+  
+  deregister_unit(event.entity) -- Call this after
 end
+-- ===================================================================
+-- ## END GUI REFRESH FIX ##
+-- ===================================================================
 
 -- ===================================================================
 -- ## NEW FUNCTION ##
@@ -2466,17 +2508,27 @@ local set_control_group = function(event, group_number)
     -- No units selected, clear the control group (standard RTS behavior)
     script_data.control_groups[player_index][group_number] = nil
     player.play_sound({path = "utility/cannot_build"}) -- Sound for clearing
-    return
+  else
+    local unit_numbers_list = {}
+    for unit_number, entity in pairs(selected) do
+      table.insert(unit_numbers_list, unit_number)
+    end
+    
+    -- Store the list of unit numbers
+    script_data.control_groups[player_index][group_number] = unit_numbers_list
+    player.play_sound({path = "utility/confirm"}) -- Sound for setting
   end
   
-  local unit_numbers_list = {}
-  for unit_number, entity in pairs(selected) do
-    table.insert(unit_numbers_list, unit_number)
+  -- ===================================================================
+  -- ## START GUI REFRESH FIX ##
+  -- ===================================================================
+  -- After setting or clearing a group, refresh the GUI if it's open
+  if get_frame(player_index) then
+      script_data.marked_for_refresh[player_index] = true
   end
-  
-  -- Store the list of unit numbers
-  script_data.control_groups[player_index][group_number] = unit_numbers_list
-  player.play_sound({path = "utility/confirm"}) -- Sound for setting
+  -- ===================================================================
+  -- ## END GUI REFRESH FIX ##
+  -- ===================================================================
 end
 
 -- FIX 2: Remove 'local' to make the function global
@@ -2544,7 +2596,65 @@ remote.add_interface("__erm_unit_control__", {
   end,
   set_map_settings = function()
     set_map_settings()
+  end,
+  
+  -- ===================================================================
+  -- ## NEW REMOTE INTERFACE FUNCTION ##
+  -- ===================================================================
+  assign_control_group = function(player_index, control_group_index, unit)
+    -- 1. Validate inputs
+    if not (player_index and control_group_index and unit and unit.valid) then
+      log("ERM Unit Control: assign_control_group called with invalid arguments.")
+      return
+    end
+    
+    local unit_number = unit.unit_number
+    if not unit_number then
+      log("ERM Unit Control: assign_control_group called on unit with no unit_number.")
+      return
+    end
+
+    -- 2. Ensure unit is registered in script_data.units
+    if not script_data.units[unit_number] then
+      -- This is a new unit, register it with a default state
+      local unit_data = {
+          entity = unit,
+          command_queue = {},
+          idle = true -- Start as idle, waiting for commands
+      }
+      script_data.units[unit_number] = unit_data
+      -- Give it a default AI command so it doesn't just stand there
+      set_unit_idle(unit_data)
+    end
+
+    -- 3. Get/Initialize Control Group table
+    script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
+    local player_groups = script_data.control_groups[player_index]
+
+    player_groups[control_group_index] = player_groups[control_group_index] or {}
+    local group_list = player_groups[control_group_index]
+
+    -- 4. Add unit to group (check for duplicates)
+    local found = false
+    for _, existing_unit_number in pairs(group_list) do
+        if existing_unit_number == unit_number then
+            found = true
+            break
+        end
+    end
+
+    if not found then
+        table.insert(group_list, unit_number)
+    end
+    
+    -- 5. Refresh GUI if open
+    if get_frame(player_index) then
+        script_data.marked_for_refresh[player_index] = true
+    end
   end
+  -- ===================================================================
+  -- ## END OF NEW FUNCTION ##
+  -- ===================================================================
 })
 
 local allow_selection =
