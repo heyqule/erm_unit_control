@@ -989,7 +989,7 @@ local gui_actions =
       end
 
       -- Add new group's units
-      for _, unit_number in pairs(group_units_list) do
+      for unit_number, _ in pairs(group_units_list) do
         local unit_data = all_units[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
           valid_units_to_select_map[unit_number] = unit_data.entity
@@ -1004,7 +1004,7 @@ local gui_actions =
       
       clear_selected_units(player) 
       
-      if #entities_list > 0 then
+      if table_size(entities_list) > 0 then
         process_unit_selection(entities_list, player)
       end
 
@@ -1151,10 +1151,11 @@ local make_unit_gui = function(player)
   -- Check groups 1-10 (10 is bound to '0')
   for i = 1, 10 do
     local unit_list = player_control_groups[i]
-    if unit_list and #unit_list > 0 then
+    if unit_list and table_size(unit_list) > 0 then
       local valid_count = 0
       -- Clean the group to get an accurate count of valid units
-      for _, unit_number in pairs(unit_list) do
+      --for _, unit_number in pairs(unit_list) do
+      for unit_number, _ in pairs(unit_list) do
         local unit_data = all_units_data[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
           valid_count = valid_count + 1
@@ -1368,9 +1369,10 @@ process_unit_selection = function(entities, player)
     local player_control_groups = script_data.control_groups[player_index]
     if player_control_groups and next(player_control_groups) then
       for i = 1, 10 do
-         if player_control_groups[i] and #player_control_groups[i] > 0 then
+         if player_control_groups[i] and table_size(player_control_groups[i]) > 0 then
             local has_valid_unit = false
-            for _, unit_num in pairs(player_control_groups[i]) do
+            --for _, unit_num in pairs(player_control_groups[i]) do
+            for unit_num, _ in pairs(player_control_groups[i]) do
               if script_data.units[unit_num] and script_data.units[unit_num].entity and script_data.units[unit_num].entity.valid then
                 has_valid_unit = true
                 break
@@ -1871,7 +1873,7 @@ end
 -- Smart function that decides whether to attack or attack-move
 local multi_attack_selection = function(event)
   local entities = event.entities
-  if entities and #entities > 0 then
+  if entities and table_size(entities) > 0 then
     return attack_units(event)
   end
   return attack_move_units(event)
@@ -1880,7 +1882,7 @@ end
 -- Smart function that decides whether to move or follow
 local multi_move_selection = function(event)
   local entities = event.entities
-  if entities and #entities > 0 then
+  if entities and table_size(entities) > 0 then
     return follow_entity(event)
   end
   return move_units(event)
@@ -1957,13 +1959,8 @@ local on_entity_removed = function(event)
     if get_frame(player_index) then
       local group_changed = false
       for group_id, unit_list in pairs(player_groups) do
-        if unit_list then
-          for i = #unit_list, 1, -1 do
-            if unit_list[i] == unit_number then
-              group_changed = true
-              break
-            end
-          end
+        if unit_list[unit_number] then
+          group_changed = true
         end
         if group_changed then break end
       end
@@ -2385,8 +2382,8 @@ local set_control_group = function(event, group_number)
   else
     -- Store the list of selected unit numbers
     local unit_numbers_list = {}
-    for unit_number, entity in pairs(selected) do
-      table.insert(unit_numbers_list, unit_number)
+    for unit_number, _ in pairs(selected) do
+      unit_numbers_list[unit_number] = true
     end
     script_data.control_groups[player_index][group_number] = unit_numbers_list
     player.play_sound({path = "utility/confirm"})
@@ -2411,7 +2408,7 @@ select_control_group = function(event, group_number)
   end
 
   local unit_numbers_list = script_data.control_groups[player_index][group_number]
-  if not unit_numbers_list or #unit_numbers_list == 0 then
+  if not unit_numbers_list or table_size(unit_numbers_list) == 0 then
     player.play_sound({path = "utility/cannot_build"})
     return
   end
@@ -2420,11 +2417,13 @@ select_control_group = function(event, group_number)
   local entities_to_select = {}
   local valid_unit_numbers = {} -- To clean dead units from the group
 
-  for _, unit_number in pairs(unit_numbers_list) do
+  for unit_number, _ in pairs(unit_numbers_list) do
     local unit_data = all_units[unit_number]
+    print(serpent.block(data))
     if unit_data and unit_data.entity and unit_data.entity.valid then
       table.insert(entities_to_select, unit_data.entity)
-      table.insert(valid_unit_numbers, unit_number)
+      --table.insert(valid_unit_numbers, unit_number)
+      valid_unit_numbers[unit_number] = true
     end
   end
 
@@ -2433,7 +2432,7 @@ select_control_group = function(event, group_number)
 
   clear_selected_units(player)
 
-  if #entities_to_select > 0 then
+  if table_size(entities_to_select) > 0 then
     process_unit_selection(entities_to_select, player)
     return entities_to_select
   else
@@ -2451,25 +2450,27 @@ local function select_control_group_and_center_camera(event, group_number)
   if not player then return end
 
   local selected_entities = select_control_group(event, group_number)
-
-  if selected_entities and #selected_entities > 0 then
+  if not selected_entities then return end
+  
+  local selected_size = table_size(selected_entities)
+  if selected_size > 0 then
     -- Find the center position of the group
     local total_x, total_y = 0, 0
     for _, entity in pairs(selected_entities) do
       total_x = total_x + entity.position.x
       total_y = total_y + entity.position.y
     end
-    
+
     local center_pos = {
-      x = total_x / #selected_entities,
-      y = total_y / #selected_entities
+      x = total_x / selected_size,
+      y = total_y / selected_size
     }
-    
+
     -- This block handles compatibility with Space Exploration/Space Age
     if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
       local surface = selected_entities[1].surface
       local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
-      
+
       if zone_data and zone_data.name then
         remote.call("space-exploration", "remote_view_start", {
           player = player,
@@ -2531,7 +2532,6 @@ remote.add_interface("erm_unit_control", {
           idle = true
       }
       script_data.units[unit_number] = unit_data
-      set_unit_idle(unit_data)
     end
     control_group_index = tonumber(control_group_index)
     -- Get/Initialize Control Group table
@@ -2543,15 +2543,12 @@ remote.add_interface("erm_unit_control", {
 
     -- Add unit to group (if not already there)
     local found = false
-    for _, existing_unit_number in pairs(group_list) do
-        if existing_unit_number == unit_number then
-            found = true
-            break
-        end
+    if group_list[unit_number] then
+      found = true
     end
 
     if not found then
-        table.insert(group_list, unit_number)
+        group_list[unit_number] = true
     end
     
     if get_frame(player_index) then
