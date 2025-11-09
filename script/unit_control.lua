@@ -2484,7 +2484,11 @@ local function select_control_group_and_center_camera(event, group_number)
       if player.render_mode == defines.render_mode.chart then
         player.set_map_view(center_pos, 2)
       else
-        player.open_map(center_pos, 2)
+        player.set_controller {
+          type = defines.controllers.remote,
+          position = center_pos,
+          start_zoom = 2
+        }
       end
     end
   end
