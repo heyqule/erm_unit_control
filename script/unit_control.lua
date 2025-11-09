@@ -1154,7 +1154,6 @@ local make_unit_gui = function(player)
     if unit_list and table_size(unit_list) > 0 then
       local valid_count = 0
       -- Clean the group to get an accurate count of valid units
-      --for _, unit_number in pairs(unit_list) do
       for unit_number, _ in pairs(unit_list) do
         local unit_data = all_units_data[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
@@ -1371,7 +1370,6 @@ process_unit_selection = function(entities, player)
       for i = 1, 10 do
          if player_control_groups[i] and table_size(player_control_groups[i]) > 0 then
             local has_valid_unit = false
-            --for _, unit_num in pairs(player_control_groups[i]) do
             for unit_num, _ in pairs(player_control_groups[i]) do
               if script_data.units[unit_num] and script_data.units[unit_num].entity and script_data.units[unit_num].entity.valid then
                 has_valid_unit = true
@@ -2419,10 +2417,8 @@ select_control_group = function(event, group_number)
 
   for unit_number, _ in pairs(unit_numbers_list) do
     local unit_data = all_units[unit_number]
-    print(serpent.block(data))
     if unit_data and unit_data.entity and unit_data.entity.valid then
       table.insert(entities_to_select, unit_data.entity)
-      --table.insert(valid_unit_numbers, unit_number)
       valid_unit_numbers[unit_number] = true
     end
   end
