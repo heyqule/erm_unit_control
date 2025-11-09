@@ -1040,17 +1040,18 @@ local gui_actions =
       end
       
       -- 4. Clear current selection (but don't destroy GUI)
-      clear_selected_units(player)
+      clear_selected_units(player) -- FIX: Made function global
       
       -- 5. Process the new combined selection
       if #entities_list > 0 then
-        process_unit_selection(entities_list, player)
+        process_unit_selection(entities_list, player) -- FIX: Made function global
       end
 
     else
       -- Regular selection (Left-click)
       -- We can just call the existing hotkey function
-      select_control_group({player_index = player.index}, group_number)
+      -- This does NOT center the camera, which is what we want for GUI clicks.
+      select_control_group({player_index = player.index}, group_number) -- FIX: Made function global
     end
   end,
   -- ===================================================================
@@ -2017,12 +2018,14 @@ local on_entity_removed = function(event)
     if get_frame(player_index) then -- Only check if this player's GUI is open
       local group_changed = false
       for group_id, unit_list in pairs(player_groups) do
-        for i = #unit_list, 1, -1 do -- Iterate backwards
-          if unit_list[i] == unit_number then
-            -- We don't need to remove it (select_control_group auto-cleans)
-            -- We just need to flag for a refresh.
-            group_changed = true
-            break
+        if unit_list then -- Check if unit_list is not nil
+          for i = #unit_list, 1, -1 do -- Iterate backwards
+            if unit_list[i] == unit_number then
+              -- We don't need to remove it (select_control_group auto-cleans)
+              -- We just need to flag for a refresh.
+              group_changed = true
+              break
+            end
           end
         end
         if group_changed then break end
@@ -2571,16 +2574,79 @@ select_control_group = function(event, group_number)
   if #entities_to_select > 0 then
     -- Select the units and open the GUI
     process_unit_selection(entities_to_select, player)
+    return entities_to_select -- <-- CHANGE 1: Return the list of selected units
   else
     -- Group was full of dead units and is now empty
     script_data.control_groups[player_index][group_number] = nil -- Clear the empty group
     script_data.marked_for_refresh[player_index] = true -- Close GUI if open
     player.play_sound({path = "utility/cannot_build"})
+    return nil -- <-- CHANGE 1: Return nil
   end
 end
 
 -- ===================================================================
--- ## END OF NEW FUNCTIONS ##
+-- ## NEW CAMERA FUNCTION ##
+-- ===================================================================
+local function select_control_group_and_center_camera(event, group_number)
+  local player = game.get_player(event.player_index)
+  if not player then return end
+
+  -- 1. Select the group
+  local selected_entities = select_control_group(event, group_number)
+
+  -- 2. If successful, find center and move camera
+  if selected_entities and #selected_entities > 0 then
+    local total_x, total_y = 0, 0
+    for _, entity in pairs(selected_entities) do
+      total_x = total_x + entity.position.x
+      total_y = total_y + entity.position.y
+    end
+    
+    local center_pos = {
+      x = total_x / #selected_entities,
+      y = total_y / #selected_entities
+    }
+    
+    -- 3. Open map and center on the position
+    -- This block is now compatibility-safe for Space Exploration / Space Age
+    if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
+      -- SPACE EXPLORATION / SPACE AGE IS INSTALLED
+      -- We must use their remote view function.
+      
+      -- Get the surface from the first unit
+      local surface = selected_entities[1].surface
+      
+      -- We must get the SE "zone_name" for this surface
+      local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
+      
+      if zone_data and zone_data.name then
+        -- We found the zone, now we can call their remote view function
+        remote.call("space-exploration", "remote_view_start", {
+          player = player,
+          zone_name = zone_data.name,
+          position = center_pos,
+          freeze_history = true -- Don't spam the player's SE nav history
+        })
+      else
+        -- Fallback if we're on a surface SE doesn't know about (should be rare)
+        player.print({"ERM Unit Control: Could not find Space Exploration zone data for this surface."})
+      end
+
+    else
+      -- VANILLA / OTHER MODS
+      -- Use the standard vanilla functions
+      if player.render_mode == defines.render_mode.chart then
+        -- Player is ALREADY in map view, so just move the view
+        player.set_map_view(center_pos, 2)
+      else
+        -- Player is in game view, so OPEN the map
+        player.open_map(center_pos, 2)
+      end
+    end
+  end
+end
+-- ===================================================================
+-- ## END OF NEW CAMERA FUNCTION ##
 -- ===================================================================
 
 
@@ -2852,16 +2918,17 @@ unit_control.events =
   [names.hotkeys.set_control_group_9] = function(e) set_control_group(e, 9) end,
   [names.hotkeys.set_control_group_0] = function(e) set_control_group(e, 10) end, -- 0 maps to 10
   
-  [names.hotkeys.select_control_group_1] = function(e) select_control_group(e, 1) end,
-  [names.hotkeys.select_control_group_2] = function(e) select_control_group(e, 2) end,
-  [names.hotkeys.select_control_group_3] = function(e) select_control_group(e, 3) end,
-  [names.hotkeys.select_control_group_4] = function(e) select_control_group(e, 4) end,
-  [names.hotkeys.select_control_group_5] = function(e) select_control_group(e, 5) end,
-  [names.hotkeys.select_control_group_6] = function(e) select_control_group(e, 6) end,
-  [names.hotkeys.select_control_group_7] = function(e) select_control_group(e, 7) end,
-  [names.hotkeys.select_control_group_8] = function(e) select_control_group(e, 8) end,
-  [names.hotkeys.select_control_group_9] = function(e) select_control_group(e, 9) end,
-  [names.hotkeys.select_control_group_0] = function(e) select_control_group(e, 10) end, -- 0 maps to 10
+  -- CHANGE 3: Point hotkeys to the new camera-centering function
+  [names.hotkeys.select_control_group_1] = function(e) select_control_group_and_center_camera(e, 1) end,
+  [names.hotkeys.select_control_group_2] = function(e) select_control_group_and_center_camera(e, 2) end,
+  [names.hotkeys.select_control_group_3] = function(e) select_control_group_and_center_camera(e, 3) end,
+  [names.hotkeys.select_control_group_4] = function(e) select_control_group_and_center_camera(e, 4) end,
+  [names.hotkeys.select_control_group_5] = function(e) select_control_group_and_center_camera(e, 5) end,
+  [names.hotkeys.select_control_group_6] = function(e) select_control_group_and_center_camera(e, 6) end,
+  [names.hotkeys.select_control_group_7] = function(e) select_control_group_and_center_camera(e, 7) end,
+  [names.hotkeys.select_control_group_8] = function(e) select_control_group_and_center_camera(e, 8) end,
+  [names.hotkeys.select_control_group_9] = function(e) select_control_group_and_center_camera(e, 9) end,
+  [names.hotkeys.select_control_group_0] = function(e) select_control_group_and_center_camera(e, 10) end, -- 0 maps to 10
   -- ===================================================================
   -- ## END OF NEW HOTKEY EVENTS ##
   -- ===================================================================
