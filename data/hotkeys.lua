@@ -223,7 +223,7 @@ for i = 0, 9 do
   -- Select Group: Ctrl + [Number]
   add_hotkey(
     "select_control_group_" .. i,
-    "CTRL + " .. key,
+    "CONTROL + " .. key,
     "f-a-" .. string.format("%02d", order_offset)
   )
   order_offset = order_offset + 1
