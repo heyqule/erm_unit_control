@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.0.4
+Version: 1.1.0
 Date: 2025-11-09
 
   Features:
@@ -7,6 +7,10 @@ Date: 2025-11-09
     - Added QRF (Quick Reaction Force) Mode, stay in position and automatically engange enemy units within close range
     - Added Perimeter Mode, stay in position and automatically engange enemy units within long range (mostly to clear expansions)
     - Added Control Groups function
+    
+  Changes:
+    - Added print_global to remote interface for printing storage object
+    - Change remote interface name from __erm_unit_control__ to erm_unit_control. Same as the info.json name for consistency.    
 
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.3

@@ -2491,7 +2491,7 @@ local function select_control_group_and_center_camera(event, group_number)
 end
 
 -- Exposes functions to be called by other mods
-remote.add_interface("__erm_unit_control__", {
+remote.add_interface("erm_unit_control", {
   register_unit_unselectable = function(entity_name)
     script_data.unit_unselectable[entity_name] = true
   end,
@@ -2503,6 +2503,9 @@ remote.add_interface("__erm_unit_control__", {
   end,
   set_map_settings = function()
     set_map_settings()
+  end,
+  print_global = function()
+    helpers.write_file("erm_unit_control/storage.json",helpers.table_to_json(util.copy(storage)))
   end,
   
   -- Allows other mods to assign a unit to a control group
