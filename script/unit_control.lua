@@ -969,7 +969,7 @@ local gui_actions =
     local player = game.get_player(event.player_index)
     if not player then return end
     
-    local group_number = action.group_number
+    local group_number = tonumber(action.group_number)
 
     if event.shift then
       -- Additive selection (Shift-click)
@@ -2374,6 +2374,7 @@ local set_control_group = function(event, group_number)
   if not player then return end
 
   script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
+  group_number = tonumber(group_number)
   
   local selected = get_selected_units(player_index)
   
@@ -2402,7 +2403,8 @@ select_control_group = function(event, group_number)
   local player_index = event.player_index
   local player = game.get_player(player_index)
   if not player then return end
-
+  
+  group_number = tonumber(group_number)
   if not script_data.control_groups[player_index] or not script_data.control_groups[player_index][group_number] then
     player.play_sound({path = "utility/cannot_build"})
     return
@@ -2531,7 +2533,7 @@ remote.add_interface("erm_unit_control", {
       script_data.units[unit_number] = unit_data
       set_unit_idle(unit_data)
     end
-
+    control_group_index = tonumber(control_group_index)
     -- Get/Initialize Control Group table
     script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
     local player_groups = script_data.control_groups[player_index]
