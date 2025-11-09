@@ -1,55 +1,52 @@
 local QRFMode = {}
 
-local QRF_RANGE = 80 -- Updated from 100....more than 80 is janky
-local SCAN_INTERVAL = 60 -- Ticks to wait before re-scanning
+-- How far the unit will scan for enemies from its original post
+local QRF_RANGE = 80 -- (Originally 100, but 80 feels better)
+-- How long to wait (in ticks) before scanning again
+local SCAN_INTERVAL = 60
 
---[[
-This function is called by process_command_queue.
-It scans for enemies. If found, it attacks.
-If not found, it returns to its post and waits.
-]]
-function QRFMode.update(unit_data, set_command_func) -- Receives 'set_command' as 'set_command_func'
+-- This is the main 'update' function for QRF (Quick Reaction Force) mode.
+-- It scans for enemies. If found, it attacks.
+-- If not, it returns to its post and waits.
+function QRFMode.update(unit_data, set_command_func)
   local unit = unit_data.entity
   if not (unit and unit.valid) then return end
 
+  -- This is the "post" the unit is defending
   local original_pos = unit_data.original_position
   if not original_pos then return end -- Safety check
 
   local surface = unit.surface
   local player_force = unit.force
 
-  -- Scan for enemies (units or turrets) within QRF range of the *original position*
+  -- Scan for any enemies within range of the *original position*
   local target = surface.find_nearest_enemy({
-    position = original_pos, -- Search *from the origin*
+    position = original_pos, -- Search *from the origin*, not the unit
     max_distance = QRF_RANGE,
-    force = player_force -- Finds all forces hostile to the player
-    -- REMOVED: type = {"unit", "turret"} -- This parameter is not valid for find_nearest_enemy
+    force = player_force
+    -- Note: 'type' parameter was removed as it's not valid here
   })
   
   if target then
-    -- Enemies found. Engage.
-    -- Use 'set_command_func' here
+    -- Enemy found! Engage.
     set_command_func(unit_data, {
       type = defines.command.attack,
       target = target,
       distraction = defines.distraction.by_enemy
     })
   else
-    -- No enemies found. Check if we are at our post.
+    -- No enemies found in the perimeter.
     local distance_from_origin = util.distance(unit.position, original_pos)
     
     if distance_from_origin > 5 then
-      -- Not at post. Return to origin.
-      -- Use 'set_command_func' here
+      -- The unit is not at its post, so return to it.
       set_command_func(unit_data, {
         type = defines.command.go_to_location,
         destination = original_pos,
-        distraction = defines.distraction.never -- Don't get distracted on the way home
+        distraction = defines.distraction.never -- Don't get distracted
       })
     else
-      -- At post. Wait for a bit before scanning again.
-      -- This creates the "scan loop".
-      -- Use 'set_command_func' here (This is the area of line 51)
+      -- The unit is at its post. Wait a bit before scanning again.
       set_command_func(unit_data, {
         type = defines.command.stop,
         ticks_to_wait = SCAN_INTERVAL

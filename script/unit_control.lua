@@ -1,16 +1,12 @@
 local util = require("script/script_util")
 local tool_names = names.unit_tools
-local HuntingMode = require("hunting_mode") -- ADD THIS
-local QRFMode = require("qrf_mode") -- ADD THIS
-local PerimeterMode = require("perimeter_mode") -- ADD THIS
+local HuntingMode = require("hunting_mode")
+local QRFMode = require("qrf_mode")
+local PerimeterMode = require("perimeter_mode")
 
--- ===================================================================
--- ## ADDED FOR ON_LOAD FIX ##
--- We must re-define the hotkey names here because
--- this file is loaded in the control phase, and on_load
--- does not re-run the data phase (hotkeys.lua).
--- This ensures names.hotkeys is populated even on existing saves.
--- ===================================================================
+-- This is a fix for loading saved games.
+-- We must re-define hotkey names here because loading a save doesn't
+-- re-run the data phase, so `names.hotkeys` would be empty.
 if not names.hotkeys then names.hotkeys = {} end
 local hotkeys = names.hotkeys
 
@@ -19,28 +15,21 @@ for i = 0, 9 do
   hotkeys["select_control_group_" .. key_num_str] = "erm-unit-control-select_control_group_" .. key_num_str
   hotkeys["set_control_group_" .. key_num_str] = "erm-unit-control-set_control_group_" .. key_num_str
 end
--- ===================================================================
--- ## END OF ON_LOAD FIX ##
--- ===================================================================
 
--- ===================================================================
--- ## NEW ON_LOAD_FIX FOR UNIT TOOLS ##
--- ===================================================================
+-- This is another fix for loading saved games, same reason as above.
+-- It re-defines the unit tool names.
 if not names.unit_tools then names.unit_tools = {} end
--- We must re-define these keys just like we do for hotkeys,
--- otherwise 'tool_names' will be nil when loading a save.
 names.unit_tools.unit_attack_move_tool = "unit_attack_move_tool"
 names.unit_tools.unit_move_tool = "unit_move_tool"
 names.unit_tools.unit_patrol_tool = "unit_patrol_tool"
-names.unit_tools.unit_selection_tool = "select-units" -- FIX 1: Was "unit_selection_tool"
+names.unit_tools.unit_selection_tool = "select-units"
 names.unit_tools.unit_attack_tool = "unit_attack_tool"
 names.unit_tools.unit_force_attack_tool = "unit_force_attack_tool"
 names.unit_tools.unit_follow_tool = "unit_follow_tool"
-names.unit_tools.unit_move_sound = "utility/confirm" -- <-- CRASH FIX: Was "unit_move_sound"
--- ===================================================================
--- ## END OF NEW FIX ##
--- ===================================================================
+names.unit_tools.unit_move_sound = "utility/confirm"
 
+-- This is the main global table that holds all the mod's
+-- active data and state, like selected units, groups, etc.
 local script_data =
 {
   button_actions = {},
@@ -48,8 +37,6 @@ local script_data =
   selected_units = {},
   open_frames = {},
   units = {},
-  --unit_groups_to_disband = {},
-  indicators = {},
   indicators = {},
   unit_unselectable = {},
   debug = false,
@@ -59,12 +46,13 @@ local script_data =
   target_indicators = {},
   attack_register = {},
   last_location = {},
-  group_hunt_data = {}, 
-  control_groups = {}, -- ADDED FOR CONTROL GROUPS
+  group_hunt_data = {},
+  control_groups = {},
 }
 
 local empty_position = {0,0}
 
+-- A simple 'enum' to define our custom command types
 local next_command_type =
 {
   move = 1,
@@ -74,16 +62,19 @@ local next_command_type =
   attack = 5,
   follow = 6,
   hold_position = 7,
-  hunt = 8, -- ADD THIS
-  qrf = 9, -- ADD THIS
-  perimeter = 10 -- ADD THIS
+  hunt = 8,
+  qrf = 9,
+  perimeter = 10
 }
 
+-- Custom event names for the mod
 local script_events =
 {
   on_unit_spawned = script.generate_event_name()
 }
 
+-- A custom print function for debugging
+-- Only prints if `script_data.debug` is true
 local print = function(string)
   if not script_data.debug then return end
   local tick = game.tick
@@ -99,6 +90,7 @@ end
 
 local insert = table.insert
 
+-- Basic helper function for distance
 local distance = function(position_1, position_2)
   local d_x = position_2.x - position_1.x
   local d_y = position_2.y - position_1.y
@@ -107,6 +99,7 @@ end
 
 local delim = "."
 local concat = table.concat
+-- Gets a unique ID number for a unit
 local get_unit_number = function(entity)
   return entity.unit_number or concat{entity.surface.index, delim, entity.position.x, delim, entity.position.y}
 end
@@ -114,6 +107,8 @@ end
 local add_unit_indicators
 local remove_target_indicator
 
+-- Tells a unit to perform a specific Factorio command (like 'go_to_location')
+-- It also updates our internal unit_data state.
 local set_command = function(unit_data, command)
   remove_target_indicator(unit_data)
   local unit = unit_data.entity
@@ -131,8 +126,9 @@ local set_command = function(unit_data, command)
   return add_unit_indicators(unit_data)
 end
 
+-- If a unit fails a command (e.g., pathfinding), this tries again
+-- with a slightly higher path resolution.
 local retry_command = function(unit_data)
-  --game.print("Unit failed a command, retrying at higher path resolution")
   local unit = unit_data.entity
   unit.ai_settings.path_resolution_modifier = math.min(unit.ai_settings.path_resolution_modifier + 1, 3)
   return pcall(unit.commandable.set_command, unit_data.command)
@@ -140,6 +136,8 @@ end
 
 local set_unit_idle
 local scout_queue = {command_type = next_command_type.scout}
+-- Handles the 'scout' command logic, finding uncharted
+-- or unseen chunks for the unit to move to.
 local set_scout_command = function(unit_data, failure, delay)
   unit_data.command_queue = {scout_queue}
   local unit = unit_data.entity
@@ -149,20 +147,17 @@ local set_scout_command = function(unit_data, failure, delay)
     return set_unit_idle(unit_data, true)
   end
   if delay and delay > 0 then
-    --print("Unit was delayed for some ticks: "..delay)
     return set_command(unit_data,
     {
       type = defines.command.stop,
       ticks_to_wait = delay
     })
   end
-  --log(game.tick..": Issueing scout command for "..unit.name.." "..unit.unit_number)
-  --unit.surface.create_entity{name = "explosion", position = unit.position}
+
   local position = unit.position
   local surface = unit.surface
   local chunk_x = math.floor(position.x / 32)
   local chunk_y = math.floor(position.y / 32)
-  --unit.surface.request_to_generate_chunks(position, scout_range)
   local map_chunk_width = surface.map_gen_settings.width / 64
   local map_chunk_height = surface.map_gen_settings.height / 64
   local in_map = function(chunk_position)
@@ -223,11 +218,7 @@ local set_scout_command = function(unit_data, failure, delay)
       tile_destination = find_non_colliding_position(name, force.get_spawn_position(surface), 0, 4)
     end
   until tile_destination
-  --print("Found destination script_data")
-  --print(serpent.block({
-  --  tile_destination = tile_destination,
-  --  current_position = {unit.position.x, unit.position.y}
-  --}))
+  
   return set_command(unit_data,
   {
     type = defines.command.go_to_location,
@@ -243,6 +234,8 @@ local set_scout_command = function(unit_data, failure, delay)
   })
 end
 
+-- Gets the currently selected units for a player,
+-- cleaning out any invalid/dead units first.
 local get_selected_units = function(player_index)
 
   local selected = script_data.selected_units[player_index]
@@ -264,6 +257,7 @@ end
 
 local highlight_box
 
+-- Draws the red target box on an enemy
 local add_target_indicator = function(unit_data)
   local player = unit_data.player
   if not player then return end
@@ -304,6 +298,7 @@ local add_target_indicator = function(unit_data)
 
 end
 
+-- Removes the red target box from an enemy
 remove_target_indicator = function(unit_data)
 
   local target = unit_data.target
@@ -321,11 +316,10 @@ remove_target_indicator = function(unit_data)
 
   indicator_data.targeting_me[unit_data.entity.unit_number] = nil
 
-  --If someone is still targeting, don't do anything.
+  -- If another unit is still targeting this, don't remove the box
   local next_index = next(indicator_data.targeting_me)
   if next_index then return end
 
-  --From an old version. Can remove in a few versions...
   indicator_data.indicators = nil
 
   local indicator = indicator_data.indicator
@@ -339,6 +333,7 @@ remove_target_indicator = function(unit_data)
 
 end
 
+-- Caches collision box data for drawing selection circles
 local box_point_cache = {}
 local width = 0.2
 local get_collision_box_draw_points = function(entity)
@@ -384,6 +379,7 @@ local get_collision_box_draw_points = function(entity)
   return box
 end
 
+-- Caches selection radius data
 local radius_cache = {}
 local get_selection_radius = function(entity)
   local radius = radius_cache[entity.name]
@@ -393,6 +389,7 @@ local get_selection_radius = function(entity)
   return radius
 end
 
+-- Draws a temporary red circle over an attack target
 local draw_temp_attack_indicator = function(entity, player)
   if not player then return end
 
@@ -404,17 +401,12 @@ local draw_temp_attack_indicator = function(entity, player)
   rendering.draw_sprite
   {
     sprite = "selection-circle",
-    --orientation = …,
     x_scale = scale,
     y_scale = scale/(2^0.5),
     tint = color,
     time_to_live = 100,
     render_layer = "lower-object-above-shadow",
-    --orientation_target = …,
-    --orientation_target_offset = …,
-    --oriented_offset = …,
     target = entity,
-    --target_offset = …,
     surface = surface,
     players = players,
     visible = true,
@@ -423,6 +415,7 @@ local draw_temp_attack_indicator = function(entity, player)
 
 end
 
+-- Clears the green selection circle from a unit
 local clear_selection_indicator = function(unit_data)
 
   if unit_data.selection_indicator then
@@ -441,9 +434,8 @@ local clear_selection_indicator = function(unit_data)
 
 end
 
+-- Draws or updates the green selection circle for a unit
 local update_selection_indicators = function(unit_data)
-  --game.print("Updating selection indicators")
-
   local player = unit_data.player
   if not player then
     clear_selection_indicator(unit_data)
@@ -473,17 +465,11 @@ local update_selection_indicators = function(unit_data)
   unit_data.rendered_selection_box[1] = rendering.draw_sprite
   {
     sprite = "selection-circle",
-    --orientation = …,
     x_scale = scale,
     y_scale = scale/(2^0.5),
     tint = color,
-
     render_layer = "lower-object-above-shadow",
-    --orientation_target = …,
-    --orientation_target_offset = …,
-    --oriented_offset = …,
     target = unit,
-    --target_offset = …,
     surface = surface,
     players = players,
     visible = true,
@@ -492,6 +478,7 @@ local update_selection_indicators = function(unit_data)
 
 end
 
+-- Clears all indicators for a unit (destination lines, etc.)
 local clear_indicators = function(unit_data)
   if not unit_data.indicators then return end
   for indicator, bool in pairs (unit_data.indicators) do
@@ -500,6 +487,7 @@ local clear_indicators = function(unit_data)
   unit_data.indicators = nil
 end
 
+-- Removes a unit from a player's selection
 local deselect_units = function(unit_data)
   if unit_data.player then
     script_data.marked_for_refresh[unit_data.player] = true
@@ -509,6 +497,7 @@ local deselect_units = function(unit_data)
   clear_indicators(unit_data)
 end
 
+-- Helper for box math
 local shift_box = function(box, shift)
   local x = shift[1] or shift.x
   local y = shift[2] or shift.y
@@ -524,29 +513,30 @@ local shift_box = function(box, shift)
   return new
 end
 
+-- Helper to get a unit's attack range from its prototype
 local get_attack_range = function(prototype)
   local attack_parameters = prototype.attack_parameters
   if not attack_parameters then return end
   return attack_parameters.range
 end
 
+-- Colors for destination lines based on move type
 local move_color =
 {
-  [defines.distraction.none] = {r = 0, b = 0, g = 1, a = 1},
-  [defines.distraction.by_anything] = {r = 1, b = 0, g = 0.5, a = 1},
-  [defines.distraction.by_enemy] = {r = 1, b = 0, g = 0.5, a = 1}
+  [defines.distraction.none] = {r = 0, b = 0, g = 1, a = 1}, -- Blue for simple move
+  [defines.distraction.by_anything] = {r = 1, b = 0, g = 0.5, a = 1}, -- Orange for attack-move
+  [defines.distraction.by_enemy] = {r = 1, b = 0, g = 0.5, a = 1} -- Orange for attack-move
 }
 
 local get_color = function(distraction)
   return move_color[distraction] or {r = 1, b = 1, g = 1, a = 1}
 end
 
+-- Main function to draw all indicators for a unit (selection, destination lines)
 add_unit_indicators = function(unit_data)
 
   update_selection_indicators(unit_data)
   clear_indicators(unit_data)
-
-  --if true then return end
 
   local player = unit_data.player
   if not player then return end
@@ -557,31 +547,15 @@ add_unit_indicators = function(unit_data)
   local indicators = {}
   unit_data.indicators = indicators
 
-
-
   local surface = unit.surface
   local players = {unit_data.player}
-
-  --[[
-
-    if unit_data.in_group then
-      indicators[rendering.draw_text
-      {
-        text="In group",
-        surface=surface,
-        target=unit,
-        color={g = 0.5},
-        scale_with_zoom=true
-      }] = true
-      return
-    end
-    ]]
 
   local rendering = rendering
   local draw_line = rendering.draw_line
   local gap_length = 1.25
   local dash_length = 0.25
 
+  -- Draw line to current destination
   if unit_data.destination then
     indicators[draw_line
     {
@@ -597,6 +571,7 @@ add_unit_indicators = function(unit_data)
     }] = true
   end
 
+  -- Draw line to a target entity
   if unit_data.destination_entity and unit_data.destination_entity.valid then
     indicators[draw_line
     {
@@ -612,6 +587,7 @@ add_unit_indicators = function(unit_data)
     }] = true
   end
 
+  -- Draw lines for all queued commands
   local position = unit_data.destination or unit.position
   for k, command in pairs (unit_data.command_queue) do
     if command.command_type == next_command_type.move then
@@ -630,6 +606,7 @@ add_unit_indicators = function(unit_data)
       position = command.destination
     end
 
+    -- Draw lines for patrol routes
     if command.command_type == next_command_type.patrol then
       for k = 1, #command.destinations do
         local to = command.destinations[k]
@@ -653,6 +630,7 @@ add_unit_indicators = function(unit_data)
 
 end
 
+-- Clears and redraws all indicators for all units
 local reset_rendering = function()
   rendering.clear("erm_unit_control")
   for k, unit_data in pairs (script_data.units) do
@@ -672,6 +650,7 @@ end
 local stop = {type = defines.command.stop}
 local hold_position_command = {type = defines.command.stop, speed = 0}
 
+-- Stops the unit and sets it to an 'idle' or 'wander' state
 set_unit_idle = function(unit_data)
   local idle_command = {type = defines.command.wander, radius = 0.5, distraction = unit_data.distraction}
   unit_data.idle = true
@@ -679,9 +658,9 @@ set_unit_idle = function(unit_data)
   unit_data.destination = nil
   unit_data.distraction = nil
   unit_data.target = nil
-  unit_data.mode = nil -- ADD THIS
-  unit_data.original_position = nil -- ADD THIS
-  unit_data.aggro_target = nil -- ADD THIS
+  unit_data.mode = nil
+  unit_data.original_position = nil
+  unit_data.aggro_target = nil
   local unit = unit_data.entity
   if unit.type == "unit" then
     unit.ai_settings.do_separation = true
@@ -690,11 +669,13 @@ set_unit_idle = function(unit_data)
   return add_unit_indicators(unit_data)
 end
 
+-- Marks a unit as 'not idle' (i.e., it has a command)
 local set_unit_not_idle = function(unit_data)
   unit_data.idle = false
   return add_unit_indicators(unit_data)
 end
 
+-- Gets the player's main unit control GUI frame
 local get_frame = function(player_index)
   local frame = script_data.open_frames[player_index]
   if not (frame and frame.valid) then
@@ -704,6 +685,7 @@ local get_frame = function(player_index)
   return frame
 end
 
+-- Issues 'stop' commands to the selected group
 local stop_group = function(player, queue)
   local group = get_selected_units(player.index)
   if not group then
@@ -722,6 +704,7 @@ local stop_group = function(player, queue)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Issues 'hold position' commands to the selected group
 local hold_position_group = function(player, queue)
   local group = get_selected_units(player.index)
   if not group then
@@ -747,17 +730,14 @@ local hold_position_group = function(player, queue)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
--- =================================================================================
--- MOVED THIS FUNCTION UP TO FIX LOAD ORDER BUG
--- =================================================================================
+-- Adds a unit to a list to be processed for an attack command
 local register_to_attack = function(unit_data)
   insert(script_data.attack_register, unit_data)
 end
--- =================================================================================
 
--- =================================================================================
--- MOVED THIS FUNCTION UP TO FIX LOAD ORDER BUG
--- =================================================================================
+-- This is the core logic that runs when a unit finishes a command.
+-- It checks the unit's `command_queue` and issues the next command
+-- (e.g., move, patrol, hunt, etc.).
 local process_command_queue
 process_command_queue = function(unit_data, event)
   local entity = unit_data.entity
@@ -765,11 +745,9 @@ process_command_queue = function(unit_data, event)
     if event then
       script_data.units[event.unit_number] = nil
     end
-    --game.print("Entity is nil?? Please save the game and report it to Klonan!")
     return
   end
   local failed = (event and event.result == defines.behavior_result.fail)
-  --print("Processing command queue "..entity.unit_number.." Failure = "..tostring(result == defines.behavior_result.fail))
 
   if failed then
     unit_data.fail_count = (unit_data.fail_count or 0) + 1
@@ -783,6 +761,7 @@ process_command_queue = function(unit_data, event)
   local command_queue = unit_data.command_queue
   local next_command = command_queue[1]
 
+  -- If no more commands, go idle
   if not (next_command) then
     entity.ai_settings.do_separation = true
     if not unit_data.idle then
@@ -794,7 +773,6 @@ process_command_queue = function(unit_data, event)
   local type = next_command.command_type
 
   if type == next_command_type.move then
-    --print("Move")
     set_command(unit_data, next_command)
     unit_data.destination = next_command.destination
     unit_data.distraction = next_command.distraction
@@ -803,7 +781,6 @@ process_command_queue = function(unit_data, event)
   end
 
   if type == next_command_type.patrol then
-    --print("Patrol")
     if next_command.destination_index == "initial" then
       next_command.destinations[1] = entity.position
       next_command.destination_index = 2
@@ -830,50 +807,38 @@ process_command_queue = function(unit_data, event)
   end
 
   if type == next_command_type.idle then
-    --print("Idle")
     unit_data.command_queue = {}
     return set_unit_idle(unit_data, true)
   end
 
   if type == next_command_type.scout then
-    --print("Scout")
     return set_scout_command(unit_data, result == defines.behavior_result.fail)
   end
 
-  -- ADD ALL OF THIS:
+  -- Handle special modded modes by calling their 'update' functions
   if type == next_command_type.hunt then
-    -- We pass the set_command and set_unit_idle functions from this file
-    -- to the hunting_mode.lua file, so it can call them.
-    -- REVERTED to 3-argument call to match our new (old) hunting_mode.lua
-    return HuntingMode.update(unit_data, set_command, set_unit_idle, event) -- ## MODIFIED: Pass 'event'
+    return HuntingMode.update(unit_data, set_command, set_unit_idle, event)
   end
   
   if type == next_command_type.qrf then
-    -- We pass this file's set_command function
     return QRFMode.update(unit_data, set_command)
   end
 
   if type == next_command_type.perimeter then
-    -- We pass this file's set_command and set_unit_idle functions
     return PerimeterMode.update(unit_data, set_command, set_unit_idle)
   end
-  -- END OF ADDED SECTION
 
   if type == next_command_type.follow then
-    --print("Follow")
+    -- 'follow' logic is handled elsewhere
   end
 
   if type == next_command_type.hold_position then
-    --print("Hold position")
     return set_command(unit_data, hold_position_command)
   end
 
 end
--- =================================================================================
--- END OF MOVED FUNCTIONS
--- =================================================================================
 
-
+-- This table maps all GUI button clicks to their functions
 local gui_actions =
 {
   move_button = function(event)
@@ -943,7 +908,8 @@ local gui_actions =
     end
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
-  -- ADD ALL OF THIS:
+  
+  -- Button to activate 'Hunt' mode
   hunt_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -954,7 +920,7 @@ local gui_actions =
       local unit_data = units[unit_number]
       unit_data.mode = "hunt"
       unit_data.original_position = nil
-      unit_data.aggro_target = nil -- Make sure to init this
+      unit_data.aggro_target = nil
       unit_data.command_queue = {hunt_queue}
       set_unit_not_idle(unit_data)
       process_command_queue(unit_data) -- Start the command immediately
@@ -962,6 +928,7 @@ local gui_actions =
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
 
+  -- Button to activate 'QRF' (Quick Reaction Force) mode
   qrf_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -979,6 +946,7 @@ local gui_actions =
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
 
+  -- Button to activate 'Perimeter' mode
   perimeter_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -995,11 +963,8 @@ local gui_actions =
     end
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
-  -- END OF ADDED SECTION
 
-  -- ===================================================================
-  -- ## NEW CONTROL GROUP GUI ACTION ##
-  -- ===================================================================
+  -- Button for selecting a control group from the GUI
   control_group_button = function(event, action)
     local player = game.get_player(event.player_index)
     if not player then return end
@@ -1010,22 +975,20 @@ local gui_actions =
       -- Additive selection (Shift-click)
       local player_index = player.index
       local group_units_list = script_data.control_groups[player_index] and script_data.control_groups[player_index][group_number]
-      if not group_units_list then return end -- Group is empty
+      if not group_units_list then return end 
 
-      -- Get currently selected units
       local current_selection_map = get_selected_units(player_index) or {}
-      
       local all_units = script_data.units
       local valid_units_to_select_map = {}
 
-      -- 1. Add currently selected units to our map
+      -- Add currently selected units
       for unit_number, entity in pairs(current_selection_map) do
         if entity and entity.valid then
           valid_units_to_select_map[unit_number] = entity
         end
       end
 
-      -- 2. Add new group's units to our map (handles duplicates)
+      -- Add new group's units
       for _, unit_number in pairs(group_units_list) do
         local unit_data = all_units[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
@@ -1033,31 +996,27 @@ local gui_actions =
         end
       end
 
-      -- 3. Convert map back to a list for processing
+      -- Convert map back to a list
       local entities_list = {}
       for unit_number, entity in pairs(valid_units_to_select_map) do
         table.insert(entities_list, entity)
       end
       
-      -- 4. Clear current selection (but don't destroy GUI)
-      clear_selected_units(player) -- FIX: Made function global
+      clear_selected_units(player) 
       
-      -- 5. Process the new combined selection
       if #entities_list > 0 then
-        process_unit_selection(entities_list, player) -- FIX: Made function global
+        process_unit_selection(entities_list, player)
       end
 
     else
       -- Regular selection (Left-click)
-      -- We can just call the existing hotkey function
-      -- This does NOT center the camera, which is what we want for GUI clicks.
-      select_control_group({player_index = player.index}, group_number) -- FIX: Made function global
+      -- This calls the same function as the hotkey, but
+      -- it won't center the camera, which is correct for a GUI click.
+      select_control_group({player_index = player.index}, group_number)
     end
   end,
-  -- ===================================================================
-  -- ## END OF NEW ACTION ##
-  -- ===================================================================
 
+  -- Button to close the GUI
   exit_button = function(event)
     local group = get_selected_units(event.player_index)
     if not group then return end
@@ -1068,16 +1027,15 @@ local gui_actions =
       group[unit_number] = nil
     end
     script_data.selected_units[event.player_index] = nil
-
-    -- @note heyqule custom change
-    -- Force unit control window to destroy, prevent window not destroy in MP.
+    
+    -- Force GUI to destroy (prevents potential bug in multiplayer)
     local frame = get_frame(event.player_index)
     if not (frame and frame.valid) then return end
     util.deregister_gui(frame, script_data.button_actions)
     frame.destroy()
-    
-    --The GUI should be destroyed in the on_tick anyway.
   end,
+  
+  -- Button for a specific unit type inside the GUI (e.g., clicking the 'grunt' icon)
   selected_units_button = function(event, action)
     local unit_name = action.unit
     local group = get_selected_units(event.player_index)
@@ -1088,6 +1046,7 @@ local gui_actions =
 
     if right then
       if event.shift then
+        -- Right-shift-click: Deselect half
         local count = 0
         for unit_number, entity in pairs (group) do
           if entity.name == unit_name then
@@ -1106,6 +1065,7 @@ local gui_actions =
           end
         end
       else
+        -- Right-click: Deselect one
         for unit_number, entity in pairs (group) do
           if entity.name == unit_name then
             deselect_units(units[unit_number])
@@ -1118,6 +1078,7 @@ local gui_actions =
 
     if left then
       if event.shift then
+        -- Left-shift-click: Deselect all of this type
         for unit_number, entity in pairs (group) do
           if entity.name == unit_name then
             deselect_units(units[unit_number])
@@ -1125,6 +1086,7 @@ local gui_actions =
           end
         end
       else
+        -- Left-click: Select *only* this type
         for unit_number, entity in pairs (group) do
           if entity.name ~= unit_name then
             deselect_units(units[unit_number])
@@ -1136,37 +1098,21 @@ local gui_actions =
   end
 }
 
-local button_map =
-{
-  [tool_names.unit_move_tool] = "move_button",
-  [tool_names.unit_patrol_tool] = "patrol_button",
-  [tool_names.unit_attack_move_tool] = "attack_move_button",
-  [tool_names.unit_attack_tool] = "attack_button",
-  [tool_names.unit_force_attack_tool] = "force_attack_button",
-  [tool_names.unit_follow_tool] = "follow_button",
-  ["hold-position"] = "hold_position_button",
-  ["stop"] = "stop_button",
-  ["scout"] = "scout_button"
-}
-
+-- Defines the visual properties (sprite, tooltip) for the buttons
 local button_map =
 {
   move_button = {sprite = "utility/mod_dependency_arrow", tooltip = {"tooltip." .. tool_names.unit_move_tool}, style = "shortcut_bar_button_small_green"},
   patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
   attack_move_button = {sprite = "utility/center", tooltip = {"tooltip." .. tool_names.unit_attack_move_tool}},
-  --attack_button = {sprite = "item/"..tool_names.unit_attack_tool, tooltip = {tool_names.unit_attack_tool}},
-  --force_attack_button = {sprte = "item/"..tool_names.unit_force_attack_tool, tooltip = {tool_names.unit_force_attack_tool}},
-  --follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {tool_names.unit_follow_tool}},
   hold_position_button = {sprite = "utility/downloading", tooltip = {"custom-input-name.hold-position"}},
   stop_button = {sprite = "utility/close_black", tooltip = {"custom-input-name.stop"}, style = "shortcut_bar_button_small_red"},
   scout_button = {sprite = "utility/map", tooltip = {"custom-input-name.scout"}},
-
-  -- ADD/UPDATE THESE THREE:
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
   qrf_button = {sprite = "utility/downloading", tooltip = {"gui.qrf-mode"}, style = "shortcut_bar_button_small_blue"},
   perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
 }
 
+-- Creates or updates the main unit control GUI for a player
 local make_unit_gui = function(player)
   local index = player.index
   local frame = get_frame(index)
@@ -1175,24 +1121,16 @@ local make_unit_gui = function(player)
 
   local group = get_selected_units(index)
 
+  -- If no units are selected, destroy the GUI
   if not group then
-    --player.game_view_settings.update_entity_selection = true
     script_data.last_location[index] = frame.location
     frame.destroy()
     return
   end
 
-  --player.game_view_settings.update_entity_selection = true
-  --player.update_selected_entity({2000000, 2000000})
-  --player.clear_selected_entity()
-  --player.selected = nil
-  --player.game_view_settings.update_entity_selection = false
-  --player.clear_selected_entity()
-  --player.selected = nil
-
   frame.clear()
   local header_flow = frame.add{type = "flow", direction = "horizontal"}
-  local label = header_flow.add{type = "label", caption = {"gui.unit-control"}--[[, style = "heading_1_label"]]}
+  local label = header_flow.add{type = "label", caption = {"gui.unit-control"}}
   label.drag_target = frame
   local pusher = header_flow.add{type = "empty-widget", direction = "horizontal", style = "draggable_space_header"}
   pusher.style.horizontally_stretchable = true
@@ -1204,20 +1142,18 @@ local make_unit_gui = function(player)
 
   util.register_gui(script_data.button_actions, exit_button, {type = "exit_button"})
 
-  -- ===================================================================
-  -- ## NEW: DRAW CONTROL GROUP BUTTONS ##
-  -- ===================================================================
+  -- Draw the control group buttons
   local player_control_groups = script_data.control_groups[index] or {}
   local all_units_data = script_data.units
   local has_control_groups = false
   local control_group_data_for_gui = {}
 
-  -- We check 1-10 (10 maps to 0)
+  -- Check groups 1-10 (10 is bound to '0')
   for i = 1, 10 do
     local unit_list = player_control_groups[i]
     if unit_list and #unit_list > 0 then
       local valid_count = 0
-      -- Clean the group to get an accurate count
+      -- Clean the group to get an accurate count of valid units
       for _, unit_number in pairs(unit_list) do
         local unit_data = all_units_data[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
@@ -1232,18 +1168,17 @@ local make_unit_gui = function(player)
     end
   end
 
+  -- Add the control group button bar to the GUI
   if has_control_groups then
     local cg_frame = frame.add{type="frame", style="inside_deep_frame", direction="vertical"}
     local cg_table = cg_frame.add{type="table", column_count=10, style="filter_slot_table"}
     
     for _, data in pairs(control_group_data_for_gui) do
-      local group_number = data.number -- This is 1-10
+      local group_number = data.number
       local group_count = data.count
       
-      -- Map 10 back to 0 for signal icon and locale key
       local signal_number = (group_number == 10) and 0 or group_number 
-      
-      local signal_sprite = "virtual-signal/signal-" .. signal_number -- FIX: Was "signal/signal_"
+      local signal_sprite = "virtual-signal/signal-" .. signal_number
       local signal_tooltip = {"custom-input-name.erm-unit-control-select_control_group_" .. signal_number}
 
       local button = cg_table.add{
@@ -1256,17 +1191,15 @@ local make_unit_gui = function(player)
       util.register_gui(script_data.button_actions, button, {type = "control_group_button", group_number = group_number})
     end
   end
-  -- ===================================================================
-  -- ## END OF NEW SECTION ##
-  -- ===================================================================
 
+  -- Draw the icons for currently selected units
   local map = {}
   for unit_number, ent in pairs (group) do
     local name = ent.name
     map[name] = (map[name] or 0) + 1
   end
   local inner = frame.add{type = "frame", style = "inside_deep_frame", direction = "vertical"}
-  local spam = inner.add{type = "frame"--[[, style = "filter_scroll_pane_background_frame"]]}
+  local spam = inner.add{type = "frame"}
   local subfooter = inner.add{type = "frame", style = "subfooter_frame"}
   subfooter.style.horizontally_stretchable = true
   spam.style.minimal_height = 0
@@ -1279,6 +1212,7 @@ local make_unit_gui = function(player)
     util.register_gui(script_data.button_actions, unit_button, {type = "selected_units_button", unit = name})
   end
 
+  -- Draw the command buttons (Move, Patrol, Hunt, etc.)
   subfooter.add{type = "empty-widget"}.style.horizontally_stretchable = true
   local butts = subfooter.add{type = "table", column_count = 10}
   for action, param in pairs (button_map) do
@@ -1286,11 +1220,10 @@ local make_unit_gui = function(player)
     button.style.height = 24 * player.display_scale
     button.style.width = 24 * player.display_scale
     util.register_gui(script_data.button_actions, button, {type = action})
-    --button.style.font = "default"
-    --button.style.horizontally_stretchable = true
   end
 end
 
+-- Cleans up a unit from the mod's data when it's removed
 local deregister_unit = function(entity)
   if not (entity and entity.valid) then return end
   local unit_number = entity.unit_number
@@ -1303,32 +1236,24 @@ local deregister_unit = function(entity)
 
   local group = unit.group
   if group then
-    --game.print("Deregistered unit from group")
     group[unit_number] = nil
     
-    -- ================================================
-    -- ## ADDED THIS BLOCK TO PREVENT MEMORY LEAK ##
-    -- ================================================
-    if not next(group) then -- Check if the group is now empty
-      -- If group is empty, clean up shared data for all modes
+    -- If group is now empty, clean up any shared data
+    if not next(group) then
       if script_data.group_hunt_data and script_data.group_hunt_data[group] then
          script_data.group_hunt_data[group] = nil
       end
-      -- Add cleanup for any future group data tables here
     end
-    -- ================================================
-    -- ## END OF NEW BLOCK ##
-    -- ================================================
   end
   local player_index = unit.player
   if not player_index then
-    --game.print("No player index attached to unit info")
     return
   end
 end
 
 local double_click_delay = 30
 
+-- Helper to detect double-clicks
 local is_double_click = function(event)
   local this_area = event.area
   local radius = util.radius(this_area)
@@ -1356,6 +1281,7 @@ local is_double_click = function(event)
   return duration <= double_click_delay
 end
 
+-- Helper to detect double-right-clicks
 local is_double_right_click = function(event)
   local last_selection_tick = script_data.last_selection_tick[event.player_index]
   script_data.last_selection_tick[event.player_index] = event.tick
@@ -1379,14 +1305,15 @@ local is_double_right_click = function(event)
   return duration <= double_click_delay
 end
 
+-- Selects all units of the same type on screen
 local select_similar_nearby = function(entity)
-  --assume 1080p and 0.3 zoom
   local r = 32 * 4
   local origin = entity.position
   local area = {{origin.x - r, origin.y - r},{origin.x + r, origin.y + r}}
   return entity.surface.find_entities_filtered{area = area, force = entity.force, name = entity.name}
 end
 
+-- Checks if any GUIs are marked for refresh and updates them
 local check_refresh_gui = function()
   if not next(script_data.marked_for_refresh) then return end
   for player_index, bool in pairs (script_data.marked_for_refresh) do
@@ -1395,7 +1322,8 @@ local check_refresh_gui = function()
   script_data.marked_for_refresh = {}
 end
 
-process_unit_selection = function(entities, player) -- FIX: Removed 'local'
+-- Handles adding units to a player's selection, creating the GUI if needed
+process_unit_selection = function(entities, player)
   player.clear_cursor()
   local player_index = player.index
   local map = script_data.unit_unselectable
@@ -1427,7 +1355,6 @@ process_unit_selection = function(entities, player) -- FIX: Removed 'local'
       add_unit_indicators(unit_data)
     end
   end
-  --print_profiler()
   script_data.selected_units[player_index] = group
 
   local frame = get_frame(player_index)
@@ -1436,14 +1363,12 @@ process_unit_selection = function(entities, player) -- FIX: Removed 'local'
     local width = (12 + 400 + 12) * player.display_scale
     local size = player.display_resolution
 
-    -- Check if player has groups to determine extra height
+    -- Check if player has groups to determine extra height for the GUI
     local extra_height = 0
     local player_control_groups = script_data.control_groups[player_index]
     if player_control_groups and next(player_control_groups) then
-      -- Player has at least one group, check if any are valid
       for i = 1, 10 do
          if player_control_groups[i] and #player_control_groups[i] > 0 then
-            -- Check for at least one valid unit
             local has_valid_unit = false
             for _, unit_num in pairs(player_control_groups[i]) do
               if script_data.units[unit_num] and script_data.units[unit_num].entity and script_data.units[unit_num].entity.valid then
@@ -1452,7 +1377,7 @@ process_unit_selection = function(entities, player) -- FIX: Removed 'local'
               end
             end
             if has_valid_unit then
-              extra_height = 40 -- Add height for one row of buttons
+              extra_height = 40 -- Add height for one row of control group buttons
               break
             end
          end
@@ -1474,7 +1399,8 @@ process_unit_selection = function(entities, player) -- FIX: Removed 'local'
   check_refresh_gui()
 end
 
-clear_selected_units = function(player) -- FIX: Removed 'local'
+-- Clears a player's entire selection
+clear_selected_units = function(player)
   local units = script_data.units
   local group = get_selected_units(player.index)
   if not group then return end
@@ -1484,6 +1410,7 @@ clear_selected_units = function(player) -- FIX: Removed 'local'
   end
 end
 
+-- Event handler for when a player selects units
 local unit_selection = function(event)
   local entities = event.entities
   if not entities then return end
@@ -1491,10 +1418,6 @@ local unit_selection = function(event)
   local append = (event.name == defines.events.on_player_alt_selected_area)
   local player = game.players[event.player_index]
   if not (player and player.valid) then return end
-  --local surface = player.surface
-  --local force = player.force
-  --local area = event.area
-  --local center = util.center(area)
 
   if not append then
     clear_selected_units(player)
@@ -1508,6 +1431,7 @@ local unit_selection = function(event)
   process_unit_selection(entities, player)
 end
 
+-- Helper to get prototype info for a group
 local get_offset = function(entities)
   local map = {}
   local small = 1
@@ -1531,6 +1455,7 @@ local get_offset = function(entities)
   return small, math.ceil((small * (table_size(entities) -1) ^ 0.5)), speed
 end
 
+-- Helper to get the minimum speed of a group
 local get_min_speed = function(entities)
   local map = {}
   local speed = math.huge
@@ -1547,6 +1472,7 @@ local get_min_speed = function(entities)
   return speed
 end
 
+-- Calculates positions for a unit formation (spiral pattern)
 local positions = {}
 local turn_rate = (math.pi * 2) / 1.618
 local size_scale = 1
@@ -1579,6 +1505,7 @@ local path_flags =
 }
 
 local min = 1
+-- Gets the size of the largest unit and speed of the slowest unit
 local get_group_size_and_speed = function(group)
   local speed = math.huge
   local size = 0
@@ -1601,6 +1528,8 @@ local get_group_size_and_speed = function(group)
   return size, speed
 end
 
+-- Generates and assigns 'go_to_location' commands for a whole group,
+-- arranging them in a formation.
 local make_move_command = function(param)
   local origin = param.position
   local distraction = param.distraction or defines.distraction.by_enemy
@@ -1620,7 +1549,6 @@ local make_move_command = function(param)
     local offset = get_move_offset(i, size)
     i = i + 1
     local destination = {origin.x + offset.x, origin.y + offset.y}
-    --log(entity.unit_number.." = "..serpent.line(destination))
     local is_unit = (entity.type == "unit")
     local destination = find(entity.name, destination, 0, 0.5)
     local command =
@@ -1652,6 +1580,7 @@ local make_move_command = function(param)
   end
 end
 
+-- Issues a simple move command
 local move_units = function(event)
   local group = get_selected_units(event.player_index)
   if not group then
@@ -1669,6 +1598,7 @@ local move_units = function(event)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Issues a move command from a right-click
 local move_units_to_position = function(player, position, append)
   local group = get_selected_units(player.index)
   if not group then
@@ -1686,6 +1616,7 @@ local move_units_to_position = function(player, position, append)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Issues an attack-move command
 local attack_move_units = function(event)
   local group = get_selected_units(event.player_index)
   if not group then
@@ -1703,6 +1634,7 @@ local attack_move_units = function(event)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Issues an attack-move command from a right-click
 local attack_move_units_to_position = function(player, position, append)
   local group = get_selected_units(player.index)
   if not group then
@@ -1720,6 +1652,7 @@ local attack_move_units_to_position = function(player, position, append)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Finds an existing patrol command in a unit's queue
 local find_patrol_comand = function(queue)
   if not queue then return end
   for k, command in pairs (queue) do
@@ -1729,6 +1662,7 @@ local find_patrol_comand = function(queue)
   end
 end
 
+-- Handles the logic for creating and managing patrol routes
 local make_patrol_command = function(param)
   local origin = param.position
   local distraction = param.distraction or defines.distraction.by_anything
@@ -1753,8 +1687,10 @@ local make_patrol_command = function(param)
     local next_destination = find(entity.name, destination, 0, 0.5)
     local patrol_command = find_patrol_comand(unit_data.command_queue)
     if patrol_command and append then
+      -- If appending, add a new point to the existing patrol
       insert(patrol_command.destinations, next_destination)
     else
+      -- Otherwise, create a new patrol command
       command =
       {
         command_type = next_command_type.patrol,
@@ -1781,6 +1717,7 @@ local make_patrol_command = function(param)
   end
 end
 
+-- Issues a patrol command
 local patrol_units = function(event)
   local group = get_selected_units(event.player_index)
   if not group then return end
@@ -1795,6 +1732,7 @@ local patrol_units = function(event)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Helper for quick distance check
 local quick_dist = function(p1, p2)
   return (((p1.x - p2.x) * (p1.x - p2.x)) + ((p1.y - p2.y) * (p1.y - p2.y)))
 end
@@ -1813,6 +1751,7 @@ local directions =
 
 local random = math.random
 local follow_range = 32
+-- Logic for the 'follow' command
 local unit_follow = function(unit_data)
 
   local command = unit_data.command_queue[1]
@@ -1824,7 +1763,6 @@ local unit_follow = function(unit_data)
 
   local unit = unit_data.entity
   if unit == target then
-    --Don't try to follow yourself.
     set_command(unit_data, stop)
     return
   end
@@ -1854,6 +1792,7 @@ local unit_follow = function(unit_data)
 
 end
 
+-- Generates attack commands for a group
 local make_attack_command = function(group, entities, append)
   if #entities == 0 then return end
   local script_data = script_data.units
@@ -1880,6 +1819,7 @@ local make_attack_command = function(group, entities, append)
   end
 end
 
+-- Generates follow commands for a group
 local make_follow_command = function(group, target, append)
   if not (target and target.valid) then return end
   local script_data = script_data.units
@@ -1906,6 +1846,7 @@ local make_follow_command = function(group, target, append)
   end
 end
 
+-- Issues an attack command
 local attack_units = function(event)
   local group = get_selected_units(event.player_index)
   if not group then return end
@@ -1915,6 +1856,7 @@ local attack_units = function(event)
   game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Issues a follow command
 local follow_entity = function(event)
   local group = get_selected_units(event.player_index)
   if not group then return end
@@ -1926,8 +1868,8 @@ local follow_entity = function(event)
   game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
 end
 
+-- Smart function that decides whether to attack or attack-move
 local multi_attack_selection = function(event)
-  -- A combi funciton for attack, and attack move. If there are selected units, its an attack command. No selected units, its attack move.
   local entities = event.entities
   if entities and #entities > 0 then
     return attack_units(event)
@@ -1935,8 +1877,8 @@ local multi_attack_selection = function(event)
   return attack_move_units(event)
 end
 
+-- Smart function that decides whether to move or follow
 local multi_move_selection = function(event)
-  -- A combi funciton for move and follow.
   local entities = event.entities
   if entities and #entities > 0 then
     return follow_entity(event)
@@ -1944,15 +1886,13 @@ local multi_move_selection = function(event)
   return move_units(event)
 end
 
+-- Maps selection tool actions to the correct functions
 local selected_area_actions =
 {
   [tool_names.unit_selection_tool] = unit_selection,
   [tool_names.unit_move_tool] = multi_move_selection,
   [tool_names.unit_patrol_tool] = patrol_units,
   [tool_names.unit_attack_move_tool] = multi_attack_selection,
-  --[tool_names.unit_attack_tool] = attack_units,
-  --[tool_names.unit_force_attack_tool] = attack_units,
-  --[tool_names.unit_follow_tool] = follow_entity,
 }
 
 local alt_selected_area_actions =
@@ -1961,9 +1901,6 @@ local alt_selected_area_actions =
   [tool_names.unit_move_tool] = multi_move_selection,
   [tool_names.unit_patrol_tool] = patrol_units,
   [tool_names.unit_attack_move_tool] = multi_attack_selection,
-  --[tool_names.unit_attack_tool] = attack_units,
-  --[tool_names.unit_force_attack_tool] = attack_units,
-  --[tool_names.unit_follow_tool] = follow_unit,
 }
 
 local clear_poop = function(player_index)
@@ -1976,6 +1913,7 @@ local clear_poop = function(player_index)
   end
 end
 
+-- Main event handler for player selection
 local on_player_selected_area = function(event)
   clear_poop(event.player_index)
   local action = selected_area_actions[event.item]
@@ -1983,6 +1921,7 @@ local on_player_selected_area = function(event)
   return action(event)
 end
 
+-- Main event handler for player alt-selection (shift-click)
 local on_player_alt_selected_area = function(event)
   clear_poop(event.player_index)
   local action = alt_selected_area_actions[event.item]
@@ -1990,6 +1929,7 @@ local on_player_alt_selected_area = function(event)
   return action(event)
 end
 
+-- Main event handler for all GUI clicks
 local on_gui_click = function(event)
   local element = event.element
   if not (element and element.valid) then return end
@@ -2002,9 +1942,8 @@ local on_gui_click = function(event)
   end
 end
 
--- ===================================================================
--- ## START GUI REFRESH FIX ##
--- ===================================================================
+-- Event handler for when an entity is removed
+-- Cleans up unit data and control groups
 local on_entity_removed = function(event)
   local entity = event.entity
   if not (entity and entity.valid) then return end
@@ -2013,16 +1952,14 @@ local on_entity_removed = function(event)
 
   script_data.target_indicators[get_unit_number(entity)] = nil
   
-  -- NEW LOGIC: Check if this unit was in any control group
+  -- Check if this unit was in any control group and mark GUI for refresh
   for player_index, player_groups in pairs(script_data.control_groups) do
-    if get_frame(player_index) then -- Only check if this player's GUI is open
+    if get_frame(player_index) then
       local group_changed = false
       for group_id, unit_list in pairs(player_groups) do
-        if unit_list then -- Check if unit_list is not nil
-          for i = #unit_list, 1, -1 do -- Iterate backwards
+        if unit_list then
+          for i = #unit_list, 1, -1 do
             if unit_list[i] == unit_number then
-              -- We don't need to remove it (select_control_group auto-cleans)
-              -- We just need to flag for a refresh.
               group_changed = true
               break
             end
@@ -2036,28 +1973,25 @@ local on_entity_removed = function(event)
     end
   end
   
-  deregister_unit(event.entity) -- Call this after
+  deregister_unit(event.entity)
 end
--- ===================================================================
--- ## END GUI REFRESH FIX ##
--- ===================================================================
 
--- ===================================================================
--- ## NEW FUNCTION ##
--- This handles the high-priority retaliation logic
--- ===================================================================
+-- Event handler for when a unit is damaged
+-- Triggers 'hunt' mode retaliation
+--[[
+-- Disabling this feature to improve performance.
+-- The on_entity_damaged event can fire very frequently
+-- and cause performance spikes in large battles.
 local function on_entity_damaged(event)
   local entity = event.entity
   if not (entity and entity.valid) then return end
   
   local unit_data = script_data.units[entity.unit_number]
-  -- Check if it's our unit and in hunt mode
   if not (unit_data and unit_data.mode == "hunt") then
     return
   end
   
   local cause = event.cause
-  -- Check if the cause is a valid entity
   if not (cause and cause.object_name == "LuaEntity" and cause.valid) then
     return
   end
@@ -2066,26 +2000,20 @@ local function on_entity_damaged(event)
   local unit_force = entity.force
   local cause_force = cause.force
   if not cause_force or unit_force == cause_force or unit_force.get_cease_fire(cause_force) then
-    -- Not an enemy (same force, or allied/ceasefire)
     return
   end
   
-  -- We have a valid attacker!
-  
-  -- 1. Tell the HuntingMode module to set this as the *group's* high-priority target
+  -- Tell the HuntingMode module to set this as a high-priority target
   HuntingMode.register_attacker(unit_data, cause)
   
-  -- 2. Force the unit that was *hit* to react *immediately*
-  -- This is high-priority and interrupts its current command
+  -- Force the unit that was *hit* to react *immediately*
   set_command(unit_data, {
     type = defines.command.attack,
     target = cause,
-    distraction = defines.distraction.by_enemy -- Allow it to be distracted by *other* enemies too
+    distraction = defines.distraction.by_enemy
   })
 end
--- ===================================================================
--- ## END OF NEW FUNCTION ##
--- ===================================================================
+]]
 
 
 local wants_enemy_attack =
@@ -2103,6 +2031,7 @@ local has_enough_health = function(entity)
   return (entity.health - entity.get_damage_to_be_taken()) > 0
 end
 
+-- Handles unit AI distraction logic
 local select_distraction_target = function(unit)
   local command = unit.commandable.command
   local distraction = (command and command.distraction) or defines.distraction.by_enemy
@@ -2143,35 +2072,16 @@ local process_distraction_completed = function(event)
 
 end
 
+-- Main event handler for when a unit's AI finishes a command
+-- This is the trigger to call `process_command_queue`
 local on_ai_command_completed = function(event)
-  --game.print(event.tick.." - Ai command complete "..event.unit_number)
-  
-  --[[
-  -- DELETED THIS BLOCK: This was the source of the bug.
-  -- It was trapping units in a distraction loop and
-  -- preventing them from running our new mode logic.
-  if event.was_distracted then
-    process_distraction_completed(event)
-    return
-  end
-  ]]
-
-  -- NOW, all units (even if distracted) will run this logic:
   local unit_data = script_data.units[event.unit_number]
   if unit_data then
     return process_command_queue(unit_data, event)
   end
-  --[[
-  local group_to_disband = script_data.unit_groups_to_disband[event.unit_number]
-  if group_to_disband then
-    --This group finished what it was doing, so we kill it.
-    group_to_disband.destroy()
-    script_data.unit_groups_to_disband[event.unit_number] = nil
-    return
-  end
-  ]]
 end
 
+-- Assigns attack targets for a group, finding the closest enemy for each unit
 local bulk_attack_closest = function(entities, group)
 
   for k, entity in pairs (entities) do
@@ -2207,9 +2117,9 @@ local bulk_attack_closest = function(entities, group)
       set_command(unit_data, command)
     end
   end
-  --print_profiler("Commands set " .. count)
 end
 
+-- Periodically processes the list of units waiting to attack
 local process_attack_register = function(tick)
   if tick % 31 ~= 0 then return end
   local register = script_data.attack_register
@@ -2234,12 +2144,11 @@ local process_attack_register = function(tick)
   end
 
   for entities, group in pairs (groups) do
-    -- 'entities' is either a list of targets OR a 'group' object
     local target_list
     if type(entities) == "table" then
       target_list = entities
     else
-      -- This is our hunting group. Find a nearby enemy.
+      -- This is for a hunting group. Find a nearby enemy.
       local group_leader = next(group)
       if group_leader and group_leader.entity and group_leader.entity.valid then
         local target = group_leader.entity.surface.find_nearest_enemy({
@@ -2258,7 +2167,6 @@ local process_attack_register = function(tick)
       bulk_attack_closest(target_list, group)
     else
       -- No enemies found, tell the group to process its queue
-      -- (which will make Hunting Mode patrol)
       for k, unit_data in pairs (group) do
         process_command_queue(unit_data)
       end
@@ -2267,6 +2175,7 @@ local process_attack_register = function(tick)
 
 end
 
+-- The main 'update' loop, run every game tick
 local on_tick = function(event)
   process_attack_register(event.tick)
   check_refresh_gui()
@@ -2287,8 +2196,8 @@ local suicide_all = function(event)
   end
 end
 
+-- Copies unit command data when a player copies settings from one unit spawner to another
 local on_entity_settings_pasted = function(event)
-  --Copy pasting deployers recipe.
   local source = event.source
   local destination = event.destination
   if not (source and source.valid and destination and destination.valid) then return end
@@ -2301,6 +2210,7 @@ local on_entity_settings_pasted = function(event)
   script_data.units[destination.unit_number] = copy
 end
 
+-- Cleans up a player's GUI and selected units when they leave
 local on_player_removed = function(event)
   local frame = script_data.open_frames[event.player_index]
   if (frame and frame.valid) then
@@ -2318,6 +2228,7 @@ local on_player_removed = function(event)
   end
 end
 
+-- This mod disables vanilla unit groups by destroying them
 local NO_GROUP = true
 local on_unit_added_to_group = function(event)
   local unit = event.unit
@@ -2326,28 +2237,13 @@ local on_unit_added_to_group = function(event)
   if not (group and group.valid) then return end
   local unit_data = script_data.units[unit.unit_number]
   if not unit_data then
-    --We don't have anything to do with this unit, so we don't care
     return
   end
   if NO_GROUP then
-    --this is the 'eff off' function
-    --game.print("Told group to die! "..group.group_number.." - "..unit.unit_number)
     group.destroy()
     process_command_queue(unit_data)
     return
   end
-  --[[
-  --game.print("Unit added to group: "..unit.unit_number)
-  unit_data.in_group = true
-  add_unit_indicators(unit_data)
-  --He took control of one of our units! lets keep track of this group and set this guy a command when the group finishes its command
-  if script_data.unit_groups_to_disband[group.group_number] then
-    --He's already on the hit list.
-    return
-  end
-  script_data.unit_groups_to_disband[group.group_number] = group
-  --game.print("Group added to hit list: "..group.group_number)
-  ]]
 end
 
 local on_unit_removed_from_group = function(event)
@@ -2356,11 +2252,11 @@ local on_unit_removed_from_group = function(event)
   if not (unit and unit.valid) then return end
   local unit_data = script_data.units[unit.unit_number]
   if unit_data and unit_data.in_group then
-    --game.print("Unit removed from group: "..unit.unit_number)
     return process_command_queue(unit_data)
   end
 end
 
+-- A cleanup function to remove invalid units
 local validate_some_stuff = function()
   local units = script_data.units
   for unit_number, unit_data in pairs (units) do
@@ -2369,56 +2265,33 @@ local validate_some_stuff = function()
       units[unit_number] = nil
     end
   end
-
-  --[[
-  local groups = script_data.unit_groups_to_disband
-  for group_number, group in pairs (groups) do
-    if not (group and group.valid) then
-      groups[group_number] = nil
-    end
-  end
-  ]]
 end
 
+-- Modifies Factorio's pathfinding settings for better performance
 local set_map_settings = function()
-  --if remote.interfaces["wave_defense"] then return end
   local settings = game.map_settings
-
-  --settings.path_finder.max_steps_worked_per_tick = 10000
   settings.path_finder.max_steps_worked_per_tick = 400
-
-  --settings.path_finder.start_to_goal_cost_multiplier_to_terminate_path_find = 1000
-  --settings.path_finder.short_request_max_steps = 200
-  --settings.path_finder.min_steps_to_check_path_find_termination = 500
   settings.path_finder.max_clients_to_accept_any_new_request = 1000
   settings.path_finder.use_path_cache = false
-  --settings.path_finder.short_cache_size = 0
-  --settings.path_finder.long_cache_size = 0
   settings.steering.moving.force_unit_fuzzy_goto_behavior = true
   settings.steering.default.force_unit_fuzzy_goto_behavior = false
-  --settings.steering.moving.radius = 0
-  --settings.steering.moving.default = 0
   settings.max_failed_behavior_count = 5
-  --settings.steering.moving.force_unit_fuzzy_goto_behavior = true
-  --settings.steering.moving.radius = 1
-  --settings.steering.moving.separation_force = 0.1
-  --settings.steering.moving.separation_factor = 1
 end
 
+-- Event handler for when a unit spawner creates a unit
+-- Copies the spawner's command queue to the new unit
 local on_entity_spawned = function(event)
   local source = event.spawner
   local unit = event.entity
   if not (source and source.valid and unit and unit.valid) then return end
   if unit.type ~= "unit" then return end
-  --print("Unit deployed: "..unit.name)
+  
   local source_data = script_data.units[source.unit_number]
   if not source_data then
     unit.commandable.set_command({type = defines.command.wander, radius = source.get_radius()})
     return
   end
 
-  --print("Unit deployer source queue found: ")
-  --print(serpent.block(source_data))
   local queue = source_data.command_queue
   local unit_data =
   {
@@ -2446,6 +2319,7 @@ local on_entity_spawned = function(event)
   return process_command_queue(unit_data)
 end
 
+-- Hotkey handlers
 local stop_hotkey = function(event)
   stop_group(game.get_player(event.player_index))
 end
@@ -2493,56 +2367,44 @@ local select_all_units_hotkey = function(event)
 
 end
 
--- ===================================================================
--- ## NEW FUNCTIONS FOR CONTROL GROUPS ##
--- ===================================================================
-
+-- Core logic for setting a control group
 local set_control_group = function(event, group_number)
   local player_index = event.player_index
   local player = game.get_player(player_index)
   if not player then return end
 
-  -- Ensure the player's root control group table exists
   script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
   
   local selected = get_selected_units(player_index)
   
   if not selected then
-    -- No units selected, clear the control group (standard RTS behavior)
+    -- No units selected, so clear the control group
     script_data.control_groups[player_index][group_number] = nil
-    player.play_sound({path = "utility/cannot_build"}) -- Sound for clearing
+    player.play_sound({path = "utility/cannot_build"})
   else
+    -- Store the list of selected unit numbers
     local unit_numbers_list = {}
     for unit_number, entity in pairs(selected) do
       table.insert(unit_numbers_list, unit_number)
     end
-    
-    -- Store the list of unit numbers
     script_data.control_groups[player_index][group_number] = unit_numbers_list
-    player.play_sound({path = "utility/confirm"}) -- Sound for setting
+    player.play_sound({path = "utility/confirm"})
   end
   
-  -- ===================================================================
-  -- ## START GUI REFRESH FIX ##
-  -- ===================================================================
-  -- After setting or clearing a group, refresh the GUI if it's open
+  -- Refresh the GUI if it's open
   if get_frame(player_index) then
       script_data.marked_for_refresh[player_index] = true
   end
-  -- ===================================================================
-  -- ## END GUI REFRESH FIX ##
-  -- ===================================================================
 end
 
--- FIX 2: Remove 'local' to make the function global
+-- Core logic for selecting a control group
 select_control_group = function(event, group_number)
   local player_index = event.player_index
   local player = game.get_player(player_index)
   if not player then return end
 
-  -- Check if the player or the specific group exists
   if not script_data.control_groups[player_index] or not script_data.control_groups[player_index][group_number] then
-    player.play_sound({path = "utility/cannot_build"}) -- Sound for empty group
+    player.play_sound({path = "utility/cannot_build"})
     return
   end
 
@@ -2554,48 +2416,42 @@ select_control_group = function(event, group_number)
 
   local all_units = script_data.units
   local entities_to_select = {}
-  local valid_unit_numbers = {} -- For cleaning dead units from the group
+  local valid_unit_numbers = {} -- To clean dead units from the group
 
   for _, unit_number in pairs(unit_numbers_list) do
     local unit_data = all_units[unit_number]
-    -- Check if unit still exists in our mod and is valid in game
     if unit_data and unit_data.entity and unit_data.entity.valid then
       table.insert(entities_to_select, unit_data.entity)
       table.insert(valid_unit_numbers, unit_number)
     end
   end
 
-  -- Auto-clean the group
+  -- Auto-clean the group of dead units
   script_data.control_groups[player_index][group_number] = valid_unit_numbers
 
-  -- Deselect any units the player currently has selected
   clear_selected_units(player)
 
   if #entities_to_select > 0 then
-    -- Select the units and open the GUI
     process_unit_selection(entities_to_select, player)
-    return entities_to_select -- <-- CHANGE 1: Return the list of selected units
+    return entities_to_select
   else
     -- Group was full of dead units and is now empty
-    script_data.control_groups[player_index][group_number] = nil -- Clear the empty group
-    script_data.marked_for_refresh[player_index] = true -- Close GUI if open
+    script_data.control_groups[player_index][group_number] = nil
+    script_data.marked_for_refresh[player_index] = true
     player.play_sound({path = "utility/cannot_build"})
-    return nil -- <-- CHANGE 1: Return nil
+    return nil
   end
 end
 
--- ===================================================================
--- ## NEW CAMERA FUNCTION ##
--- ===================================================================
+-- Selects a group and also centers the camera on them
 local function select_control_group_and_center_camera(event, group_number)
   local player = game.get_player(event.player_index)
   if not player then return end
 
-  -- 1. Select the group
   local selected_entities = select_control_group(event, group_number)
 
-  -- 2. If successful, find center and move camera
   if selected_entities and #selected_entities > 0 then
+    -- Find the center position of the group
     local total_x, total_y = 0, 0
     for _, entity in pairs(selected_entities) do
       total_x = total_x + entity.position.x
@@ -2607,49 +2463,34 @@ local function select_control_group_and_center_camera(event, group_number)
       y = total_y / #selected_entities
     }
     
-    -- 3. Open map and center on the position
-    -- This block is now compatibility-safe for Space Exploration / Space Age
+    -- This block handles compatibility with Space Exploration/Space Age
     if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
-      -- SPACE EXPLORATION / SPACE AGE IS INSTALLED
-      -- We must use their remote view function.
-      
-      -- Get the surface from the first unit
       local surface = selected_entities[1].surface
-      
-      -- We must get the SE "zone_name" for this surface
       local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
       
       if zone_data and zone_data.name then
-        -- We found the zone, now we can call their remote view function
         remote.call("space-exploration", "remote_view_start", {
           player = player,
           zone_name = zone_data.name,
           position = center_pos,
-          freeze_history = true -- Don't spam the player's SE nav history
+          freeze_history = true
         })
       else
-        -- Fallback if we're on a surface SE doesn't know about (should be rare)
         player.print({"ERM Unit Control: Could not find Space Exploration zone data for this surface."})
       end
 
     else
-      -- VANILLA / OTHER MODS
-      -- Use the standard vanilla functions
+      -- Vanilla camera controls
       if player.render_mode == defines.render_mode.chart then
-        -- Player is ALREADY in map view, so just move the view
         player.set_map_view(center_pos, 2)
       else
-        -- Player is in game view, so OPEN the map
         player.open_map(center_pos, 2)
       end
     end
   end
 end
--- ===================================================================
--- ## END OF NEW CAMERA FUNCTION ##
--- ===================================================================
 
-
+-- Exposes functions to be called by other mods
 remote.add_interface("__erm_unit_control__", {
   register_unit_unselectable = function(entity_name)
     script_data.unit_unselectable[entity_name] = true
@@ -2664,11 +2505,8 @@ remote.add_interface("__erm_unit_control__", {
     set_map_settings()
   end,
   
-  -- ===================================================================
-  -- ## NEW REMOTE INTERFACE FUNCTION ##
-  -- ===================================================================
+  -- Allows other mods to assign a unit to a control group
   assign_control_group = function(player_index, control_group_index, unit)
-    -- 1. Validate inputs
     if not (player_index and control_group_index and unit and unit.valid) then
       log("ERM Unit Control: assign_control_group called with invalid arguments.")
       return
@@ -2680,27 +2518,25 @@ remote.add_interface("__erm_unit_control__", {
       return
     end
 
-    -- 2. Ensure unit is registered in script_data.units
+    -- Ensure unit is registered in our mod's data
     if not script_data.units[unit_number] then
-      -- This is a new unit, register it with a default state
       local unit_data = {
           entity = unit,
           command_queue = {},
-          idle = true -- Start as idle, waiting for commands
+          idle = true
       }
       script_data.units[unit_number] = unit_data
-      -- Give it a default AI command so it doesn't just stand there
       set_unit_idle(unit_data)
     end
 
-    -- 3. Get/Initialize Control Group table
+    -- Get/Initialize Control Group table
     script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
     local player_groups = script_data.control_groups[player_index]
 
     player_groups[control_group_index] = player_groups[control_group_index] or {}
     local group_list = player_groups[control_group_index]
 
-    -- 4. Add unit to group (check for duplicates)
+    -- Add unit to group (if not already there)
     local found = false
     for _, existing_unit_number in pairs(group_list) do
         if existing_unit_number == unit_number then
@@ -2713,14 +2549,10 @@ remote.add_interface("__erm_unit_control__", {
         table.insert(group_list, unit_number)
     end
     
-    -- 5. Refresh GUI if open
     if get_frame(player_index) then
         script_data.marked_for_refresh[player_index] = true
     end
   end
-  -- ===================================================================
-  -- ## END OF NEW FUNCTION ##
-  -- ===================================================================
 })
 
 local allow_selection =
@@ -2733,6 +2565,7 @@ local block_by_opened_gui = {
   [defines.gui_type.blueprint_library] = true
 }
 
+-- Checks if the player is in a state that allows our left-click override
 local can_left_click = function(player, shift)
   if block_by_opened_gui[player.opened_gui_type] then return end
   if not shift and player.render_mode == defines.render_mode.chart then return end
@@ -2743,6 +2576,7 @@ local can_left_click = function(player, shift)
   return true
 end
 
+-- Sets the player's cursor to the 'select-units' tool
 local set_cursor_to_select = function(player)
   local stack = player.cursor_stack
   if not stack then return end
@@ -2752,8 +2586,8 @@ local set_cursor_to_select = function(player)
   return true
 end
 
+-- Overrides the default left-click to start our unit selection
 local left_click = function(event)
-
   local player = game.get_player(event.player_index)
   if not can_left_click(player) then
     return
@@ -2763,18 +2597,18 @@ local left_click = function(event)
   end
 end
 
+-- Overrides the default shift-left-click
 local shift_left_click = function(event)
-
   local player = game.get_player(event.player_index)
   if not can_left_click(player, true) then
     return
   end
-
   if set_cursor_to_select(player) then
     player.start_selection(event.cursor_position, defines.selection_mode.alt_select)
   end
 end
 
+-- Overrides the default right-click to issue unit commands
 local right_click = function(event)
   local group = get_selected_units(event.player_index)
   if not group then return end
@@ -2817,6 +2651,7 @@ local right_click = function(event)
 
 end
 
+-- Overrides the default shift-right-click
 local shift_right_click = function(event)
   local group = get_selected_units(event.player_index)
   if not group then return end
@@ -2859,6 +2694,8 @@ local on_gui_closed = function(event)
    gui_actions.exit_button(event)
 end
 
+-- Main event handler table
+-- This maps all game events and hotkeys to the functions
 local unit_control = {}
 
 unit_control.events =
@@ -2875,9 +2712,8 @@ unit_control.events =
   [defines.events.on_player_mined_entity] = on_entity_removed,
   [defines.events.script_raised_destroy] = on_entity_removed,
   
-  -- ## ADDED THIS EVENT ##
-  [defines.events.on_entity_damaged] = on_entity_damaged,
-
+  -- [defines.events.on_entity_damaged] = on_entity_damaged, -- Disabled for performance
+  
   [defines.events.on_ai_command_completed] = on_ai_command_completed,
   [defines.events.on_unit_added_to_group] = on_unit_added_to_group,
 
@@ -2904,9 +2740,7 @@ unit_control.events =
   ["shift-right-click"] = shift_right_click,
   [names.hotkeys.select_all_units] = select_all_units_hotkey,
 
-  -- ===================================================================
-  -- ## ADDED HOTKEY EVENTS FOR CONTROL GROUPS ##
-  -- ===================================================================
+  -- Control Group Hotkeys
   [names.hotkeys.set_control_group_1] = function(e) set_control_group(e, 1) end,
   [names.hotkeys.set_control_group_2] = function(e) set_control_group(e, 2) end,
   [names.hotkeys.set_control_group_3] = function(e) set_control_group(e, 3) end,
@@ -2918,7 +2752,6 @@ unit_control.events =
   [names.hotkeys.set_control_group_9] = function(e) set_control_group(e, 9) end,
   [names.hotkeys.set_control_group_0] = function(e) set_control_group(e, 10) end, -- 0 maps to 10
   
-  -- CHANGE 3: Point hotkeys to the new camera-centering function
   [names.hotkeys.select_control_group_1] = function(e) select_control_group_and_center_camera(e, 1) end,
   [names.hotkeys.select_control_group_2] = function(e) select_control_group_and_center_camera(e, 2) end,
   [names.hotkeys.select_control_group_3] = function(e) select_control_group_and_center_camera(e, 3) end,
@@ -2929,39 +2762,34 @@ unit_control.events =
   [names.hotkeys.select_control_group_8] = function(e) select_control_group_and_center_camera(e, 8) end,
   [names.hotkeys.select_control_group_9] = function(e) select_control_group_and_center_camera(e, 9) end,
   [names.hotkeys.select_control_group_0] = function(e) select_control_group_and_center_camera(e, 10) end, -- 0 maps to 10
-  -- ===================================================================
-  -- ## END OF NEW HOTKEY EVENTS ##
-  -- ===================================================================
 }
 
+-- Standard Factorio mod function, runs when the mod is first initialized
 unit_control.on_init = function()
   storage.unit_control = storage.unit_control or script_data
-  -- Ensure new tables for migration
+  -- Ensure new tables exist for migration
   storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
   storage.unit_control.control_groups = storage.unit_control.control_groups or {}
   
   set_map_settings()
 end
 
+-- Runs when mod is added to an existing save or when mod version changes
 unit_control.on_configuration_changed = function(configuration_changed_data)
-  -- FIX: Add initialization here for when mod is added to existing save
   storage.unit_control = storage.unit_control or script_data
   script_data = storage.unit_control
 
-  -- FIX: Ensure new tables exist for migrations
+  -- Ensure new tables exist for migration
   script_data.group_hunt_data = script_data.group_hunt_data or {}
-  script_data.control_groups = script_data.control_groups or {} -- ADDED FOR MIGRATION
+  script_data.control_groups = script_data.control_groups or {}
 
   set_map_settings()
   reset_rendering()
   script_data.last_location = script_data.last_location or {}
 end
 
+-- Runs when a save game is loaded
 unit_control.on_load = function()
-  -- This function MUST NOT modify the 'storage' table.
-  -- It only points our file's 'script_data' variable to the loaded data.
-  -- All migration logic is handled in on_configuration_changed,
-  -- which Factorio runs automatically when needed.
   script_data = storage.unit_control
 end
 
