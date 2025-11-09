@@ -2480,16 +2480,12 @@ local function select_control_group_and_center_camera(event, group_number)
       end
 
     else
-      -- Vanilla camera controls
-      if player.render_mode == defines.render_mode.chart then
-        player.set_map_view(center_pos, 2)
-      else
-        player.set_controller {
-          type = defines.controllers.remote,
-          position = center_pos,
-          start_zoom = 2
-        }
-      end
+      local zoom = player.zoom
+      player.set_controller {
+        type = defines.controllers.remote,
+        position = center_pos,
+      }
+      player.zoom = zoom
     end
   end
 end
