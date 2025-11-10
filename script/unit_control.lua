@@ -19,14 +19,14 @@ end
 -- This is another fix for loading saved games, same reason as above.
 -- It re-defines the unit tool names.
 if not names.unit_tools then names.unit_tools = {} end
-names.unit_tools.unit_attack_move_tool = "unit_attack_move_tool"
-names.unit_tools.unit_move_tool = "unit_move_tool"
-names.unit_tools.unit_patrol_tool = "unit_patrol_tool"
+names.unit_tools.unit_attack_move_tool = "attack-move-to-position" -- Fixed name
+names.unit_tools.unit_move_tool = "move-to-position" -- Fixed name
+names.unit_tools.unit_patrol_tool = "add-patrol-waypoint" -- Fixed name
 names.unit_tools.unit_selection_tool = "select-units"
-names.unit_tools.unit_attack_tool = "unit_attack_tool"
-names.unit_tools.unit_force_attack_tool = "unit_force_attack_tool"
-names.unit_tools.unit_follow_tool = "unit_follow_tool"
-names.unit_tools.unit_move_sound = "utility/confirm"
+names.unit_tools.unit_attack_tool = "attack-targets" -- Fixed name
+names.unit_tools.unit_force_attack_tool = "force-attack-targets" -- Fixed name
+names.unit_tools.unit_follow_tool = "follow-target" -- Fixed name
+names.unit_tools.unit_move_sound = "unit-move-sound" -- Fixed name
 
 -- This is the main global table that holds all the mod's
 -- active data and state, like selected units, groups, etc.
@@ -735,80 +735,11 @@ local register_to_attack = function(unit_data)
   insert(script_data.attack_register, unit_data)
 end
 
-
-
-local type_handlers = {
-  [next_command_type.move] = function(data)
-    local unit_data = data.unit_data
-    local next_command = data.next_command
-    set_command(unit_data, next_command)
-    unit_data.destination = next_command.destination
-    unit_data.distraction = next_command.distraction
-    table.remove(unit_data.command_queue, 1)
-  end,
-  [next_command_type.patrol] = function(data)
-    local unit_data = data.unit_data
-    local next_command = data.next_command
-    local entity = data.entity
-    if next_command.destination_index == "initial" then
-      next_command.destinations[1] = entity.position
-      next_command.destination_index = 2
-    else
-      next_command.destination_index = next_command.destination_index + 1
-    end
-    local next_destination = next_command.destinations[next_command.destination_index]
-    if not next_destination then
-      next_command.destination_index = 1
-      next_destination = next_command.destinations[next_command.destination_index]
-    end
-    set_command(unit_data,
-            {
-              type = defines.command.go_to_location,
-              destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
-              radius = 1,
-              distraction = next_command.distraction
-            })
-  end,
-  [next_command_type.patrol] = function(data)
-    local unit_data = data.unit_data
-    register_to_attack(unit_data)
-  end,
-  [next_command_type.idle] = function(data)
-    local unit_data = data.unit_data
-    unit_data.command_queue = {}
-    set_unit_idle(unit_data, true)
-  end,
-  [next_command_type.scout] = function(data)
-    local unit_data = data.unit_data
-    local event = data.event
-    set_scout_command(unit_data, event.result == defines.behavior_result.fail)
-  end,
-  [next_command_type.hunt] = function(data)
-    local unit_data = data.unit_data
-    local event = data.event
-    HuntingMode.update(unit_data, set_command, set_unit_idle, event)
-  end,
-  [next_command_type.qrf] = function(data)
-    local unit_data = data.unit_data
-    QRFMode.update(unit_data, set_command)
-  end,
-  [next_command_type.perimeter] = function(data)
-    local unit_data = data.unit_data
-    PerimeterMode.update(unit_data, set_command, set_unit_idle)
-  end,
-  [next_command_type.hold_position] = function(data)
-    local unit_data = data.unit_data
-    set_command(unit_data, hold_position_command)
-  end,
-  [next_command_type.follow] = function(data)
-    -- ignore, process somewhere else
-  end
-}
-
 -- This is the core logic that runs when a unit finishes a command.
 -- It checks the unit's `command_queue` and issues the next command
 -- (e.g., move, patrol, hunt, etc.).
-local process_command_queue = function(unit_data, event)
+local process_command_queue
+process_command_queue = function(unit_data, event)
   local entity = unit_data.entity
   if not (entity and entity.valid) then
     if event then
@@ -841,14 +772,70 @@ local process_command_queue = function(unit_data, event)
 
   local type = next_command.command_type
 
-  if type_handlers[type] then
-    type_handlers[type]({
-      unit_data = unit_data,
-      entity = entity,
-      event = event,
-      next_command = next_command
-    })
+  if type == next_command_type.move then
+    set_command(unit_data, next_command)
+    unit_data.destination = next_command.destination
+    unit_data.distraction = next_command.distraction
+    table.remove(command_queue, 1)
+    return
   end
+
+  if type == next_command_type.patrol then
+    if next_command.destination_index == "initial" then
+      next_command.destinations[1] = entity.position
+      next_command.destination_index = 2
+    else
+      next_command.destination_index = next_command.destination_index + 1
+    end
+    local next_destination = next_command.destinations[next_command.destination_index]
+    if not next_destination then
+      next_command.destination_index = 1
+      next_destination = next_command.destinations[next_command.destination_index]
+    end
+    set_command(unit_data,
+    {
+      type = defines.command.go_to_location,
+      destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
+      radius = 1,
+      distraction = next_command.distraction
+    })
+    return
+  end
+
+  if type == next_command_type.attack then
+    return register_to_attack(unit_data)
+  end
+
+  if type == next_command_type.idle then
+    unit_data.command_queue = {}
+    return set_unit_idle(unit_data, true)
+  end
+
+  if type == next_command_type.scout then
+    return set_scout_command(unit_data, result == defines.behavior_result.fail)
+  end
+
+  -- Handle special modded modes by calling their 'update' functions
+  if type == next_command_type.hunt then
+    return HuntingMode.update(unit_data, set_command, set_unit_idle, event)
+  end
+  
+  if type == next_command_type.qrf then
+    return QRFMode.update(unit_data, set_command)
+  end
+
+  if type == next_command_type.perimeter then
+    return PerimeterMode.update(unit_data, set_command, set_unit_idle)
+  end
+
+  if type == next_command_type.follow then
+    -- 'follow' logic is handled elsewhere
+  end
+
+  if type == next_command_type.hold_position then
+    return set_command(unit_data, hold_position_command)
+  end
+
 end
 
 -- This table maps all GUI button clicks to their functions
@@ -982,7 +969,7 @@ local gui_actions =
     local player = game.get_player(event.player_index)
     if not player then return end
     
-    local group_number = tonumber(action.group_number)
+    local group_number = action.group_number
 
     if event.shift then
       -- Additive selection (Shift-click)
@@ -1002,7 +989,7 @@ local gui_actions =
       end
 
       -- Add new group's units
-      for unit_number, _ in pairs(group_units_list) do
+      for _, unit_number in pairs(group_units_list) do
         local unit_data = all_units[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
           valid_units_to_select_map[unit_number] = unit_data.entity
@@ -1017,7 +1004,7 @@ local gui_actions =
       
       clear_selected_units(player) 
       
-      if table_size(entities_list) > 0 then
+      if #entities_list > 0 then
         process_unit_selection(entities_list, player)
       end
 
@@ -1164,10 +1151,10 @@ local make_unit_gui = function(player)
   -- Check groups 1-10 (10 is bound to '0')
   for i = 1, 10 do
     local unit_list = player_control_groups[i]
-    if unit_list and table_size(unit_list) > 0 then
+    if unit_list and #unit_list > 0 then
       local valid_count = 0
       -- Clean the group to get an accurate count of valid units
-      for unit_number, _ in pairs(unit_list) do
+      for _, unit_number in pairs(unit_list) do
         local unit_data = all_units_data[unit_number]
         if unit_data and unit_data.entity and unit_data.entity.valid then
           valid_count = valid_count + 1
@@ -1381,9 +1368,9 @@ process_unit_selection = function(entities, player)
     local player_control_groups = script_data.control_groups[player_index]
     if player_control_groups and next(player_control_groups) then
       for i = 1, 10 do
-         if player_control_groups[i] and table_size(player_control_groups[i]) > 0 then
+         if player_control_groups[i] and #player_control_groups[i] > 0 then
             local has_valid_unit = false
-            for unit_num, _ in pairs(player_control_groups[i]) do
+            for _, unit_num in pairs(player_control_groups[i]) do
               if script_data.units[unit_num] and script_data.units[unit_num].entity and script_data.units[unit_num].entity.valid then
                 has_valid_unit = true
                 break
@@ -1698,12 +1685,16 @@ local make_patrol_command = function(param)
     local unit_data = units[unit_number]
     local is_unit = (entity.type == "unit")
     local next_destination = find(entity.name, destination, 0, 0.5)
+    
+    local command -- Declare command here
     local patrol_command = find_patrol_comand(unit_data.command_queue)
+    
     if patrol_command and append then
-      -- If appending, add a new point to the existing patrol
+      -- Case 1: Appending to existing patrol
       insert(patrol_command.destinations, next_destination)
+      -- No new command needs to be added to queue
     else
-      -- Otherwise, create a new patrol command
+      -- Case 2 or 3: New patrol, or appending (but no patrol exists yet)
       command =
       {
         command_type = next_command_type.patrol,
@@ -1713,17 +1704,20 @@ local make_patrol_command = function(param)
         do_separation = true,
         distraction = distraction
       }
-    end
-    if not append then
-      unit_data.command_queue = {command}
-      set_unit_not_idle(unit_data)
-      if is_unit then
-        process_command_queue(unit_data)
-      end
-    elseif not patrol_command then
-      insert(unit_data.command_queue, command)
-      if is_unit and unit_data.idle then
-        process_command_queue(unit_data)
+      
+      if not append then
+        -- Case 2: New patrol (not appending)
+        unit_data.command_queue = {command}
+        set_unit_not_idle(unit_data)
+        if is_unit then
+          process_command_queue(unit_data)
+        end
+      else
+        -- Case 3: Appending, but no patrol_command existed
+        insert(unit_data.command_queue, command)
+        if is_unit and unit_data.idle then
+          process_command_queue(unit_data)
+        end
       end
     end
     add_unit_indicators(unit_data)
@@ -1884,7 +1878,7 @@ end
 -- Smart function that decides whether to attack or attack-move
 local multi_attack_selection = function(event)
   local entities = event.entities
-  if entities and table_size(entities) > 0 then
+  if entities and #entities > 0 then
     return attack_units(event)
   end
   return attack_move_units(event)
@@ -1893,7 +1887,7 @@ end
 -- Smart function that decides whether to move or follow
 local multi_move_selection = function(event)
   local entities = event.entities
-  if entities and table_size(entities) > 0 then
+  if entities and #entities > 0 then
     return follow_entity(event)
   end
   return move_units(event)
@@ -1970,8 +1964,13 @@ local on_entity_removed = function(event)
     if get_frame(player_index) then
       local group_changed = false
       for group_id, unit_list in pairs(player_groups) do
-        if unit_list[unit_number] then
-          group_changed = true
+        if unit_list then
+          for i = #unit_list, 1, -1 do
+            if unit_list[i] == unit_number then
+              group_changed = true
+              break
+            end
+          end
         end
         if group_changed then break end
       end
@@ -2382,7 +2381,6 @@ local set_control_group = function(event, group_number)
   if not player then return end
 
   script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
-  group_number = tonumber(group_number)
   
   local selected = get_selected_units(player_index)
   
@@ -2393,8 +2391,8 @@ local set_control_group = function(event, group_number)
   else
     -- Store the list of selected unit numbers
     local unit_numbers_list = {}
-    for unit_number, _ in pairs(selected) do
-      unit_numbers_list[unit_number] = true
+    for unit_number, entity in pairs(selected) do
+      table.insert(unit_numbers_list, unit_number)
     end
     script_data.control_groups[player_index][group_number] = unit_numbers_list
     player.play_sound({path = "utility/confirm"})
@@ -2411,15 +2409,14 @@ select_control_group = function(event, group_number)
   local player_index = event.player_index
   local player = game.get_player(player_index)
   if not player then return end
-  
-  group_number = tonumber(group_number)
+
   if not script_data.control_groups[player_index] or not script_data.control_groups[player_index][group_number] then
     player.play_sound({path = "utility/cannot_build"})
     return
   end
 
   local unit_numbers_list = script_data.control_groups[player_index][group_number]
-  if not unit_numbers_list or table_size(unit_numbers_list) == 0 then
+  if not unit_numbers_list or #unit_numbers_list == 0 then
     player.play_sound({path = "utility/cannot_build"})
     return
   end
@@ -2428,11 +2425,11 @@ select_control_group = function(event, group_number)
   local entities_to_select = {}
   local valid_unit_numbers = {} -- To clean dead units from the group
 
-  for unit_number, _ in pairs(unit_numbers_list) do
+  for _, unit_number in pairs(unit_numbers_list) do
     local unit_data = all_units[unit_number]
     if unit_data and unit_data.entity and unit_data.entity.valid then
       table.insert(entities_to_select, unit_data.entity)
-      valid_unit_numbers[unit_number] = true
+      table.insert(valid_unit_numbers, unit_number)
     end
   end
 
@@ -2441,7 +2438,7 @@ select_control_group = function(event, group_number)
 
   clear_selected_units(player)
 
-  if table_size(entities_to_select) > 0 then
+  if #entities_to_select > 0 then
     process_unit_selection(entities_to_select, player)
     return entities_to_select
   else
@@ -2459,27 +2456,25 @@ local function select_control_group_and_center_camera(event, group_number)
   if not player then return end
 
   local selected_entities = select_control_group(event, group_number)
-  if not selected_entities then return end
-  
-  local selected_size = table_size(selected_entities)
-  if selected_size > 0 then
+
+  if selected_entities and #selected_entities > 0 then
     -- Find the center position of the group
     local total_x, total_y = 0, 0
     for _, entity in pairs(selected_entities) do
       total_x = total_x + entity.position.x
       total_y = total_y + entity.position.y
     end
-
+    
     local center_pos = {
-      x = total_x / selected_size,
-      y = total_y / selected_size
+      x = total_x / #selected_entities,
+      y = total_y / #selected_entities
     }
-
+    
     -- This block handles compatibility with Space Exploration/Space Age
     if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
       local surface = selected_entities[1].surface
       local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
-
+      
       if zone_data and zone_data.name then
         remote.call("space-exploration", "remote_view_start", {
           player = player,
@@ -2492,18 +2487,18 @@ local function select_control_group_and_center_camera(event, group_number)
       end
 
     else
-      local zoom = player.zoom
-      player.set_controller {
-        type = defines.controllers.remote,
-        position = center_pos,
-      }
-      player.zoom = zoom
+      -- Vanilla camera controls
+      if player.render_mode == defines.render_mode.chart then
+        player.set_map_view(center_pos, 2)
+      else
+        player.open_map(center_pos, 2)
+      end
     end
   end
 end
 
 -- Exposes functions to be called by other mods
-remote.add_interface("erm_unit_control", {
+remote.add_interface("__erm_unit_control__", {
   register_unit_unselectable = function(entity_name)
     script_data.unit_unselectable[entity_name] = true
   end,
@@ -2515,9 +2510,6 @@ remote.add_interface("erm_unit_control", {
   end,
   set_map_settings = function()
     set_map_settings()
-  end,
-  print_global = function()
-    helpers.write_file("erm_unit_control/storage.json",helpers.table_to_json(util.copy(storage)))
   end,
   
   -- Allows other mods to assign a unit to a control group
@@ -2541,8 +2533,9 @@ remote.add_interface("erm_unit_control", {
           idle = true
       }
       script_data.units[unit_number] = unit_data
+      set_unit_idle(unit_data)
     end
-    control_group_index = tonumber(control_group_index)
+
     -- Get/Initialize Control Group table
     script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
     local player_groups = script_data.control_groups[player_index]
@@ -2552,12 +2545,15 @@ remote.add_interface("erm_unit_control", {
 
     -- Add unit to group (if not already there)
     local found = false
-    if group_list[unit_number] then
-      found = true
+    for _, existing_unit_number in pairs(group_list) do
+        if existing_unit_number == unit_number then
+            found = true
+            break
+        end
     end
 
     if not found then
-        group_list[unit_number] = true
+        table.insert(group_list, unit_number)
     end
     
     if get_frame(player_index) then
