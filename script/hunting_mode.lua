@@ -1,3 +1,6 @@
+local Core = require("script/uc_core") -- FIX: Added this require
+local util = require("script/script_util") -- FIX: Added this require
+
 local HuntingMode = {}
 
 -- How often (in ticks) a group can search for a NEW enemy
@@ -60,16 +63,16 @@ end
 -- It sets the attacker as a high-priority target for the *entire* group.
 --[[
 -- Disabling this feature to improve performance.
--- This function is called from on_entity_damaged, which can
--- cause performance spikes.
+-- This logic relies on the on_entity_damaged event, which is
+-- being commented out in unit_control.lua.
 function HuntingMode.register_attacker(unit_data, attacker)
   if not (unit_data and unit_data.group) then return end
   
   local group = unit_data.group
   
   -- Get or create the shared hunt data for this group from the global storage
-  if not storage.unit_control.group_hunt_data[group] then
-    storage.unit_control.group_hunt_data[group] = {
+  if not Core.script_data.group_hunt_data[group] then
+    Core.script_data.group_hunt_data[group] = {
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
@@ -81,10 +84,10 @@ function HuntingMode.register_attacker(unit_data, attacker)
   end
   
   -- Set this attacker as the new high-priority target
-  storage.unit_control.group_hunt_data[group].aggro_target = attacker
-  storage.unit_control.group_hunt_data[group].regroup_position = attacker.position
+  Core.script_data.group_hunt_data[group].aggro_target = attacker
+  Core.script_data.group_hunt_data[group].regroup_position = attacker.position
 end
-]]
+--]]
 
 
 -- This is the main 'update' function for hunt mode, called by process_command_queue.
@@ -101,8 +104,9 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
   end
   
   -- Get or create the shared data for this group from global storage
-  if not storage.unit_control.group_hunt_data[group] then
-    storage.unit_control.group_hunt_data[group] = {
+  -- FIX: Changed 'storage.unit_control' to 'Core.script_data'
+  if not Core.script_data.group_hunt_data[group] then
+    Core.script_data.group_hunt_data[group] = {
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
@@ -112,7 +116,8 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
       regroup_position = nil
     }
   end
-  local data = storage.unit_control.group_hunt_data[group]
+  -- FIX: Changed 'storage.unit_control' to 'Core.script_data'
+  local data = Core.script_data.group_hunt_data[group]
   local unit_force = unit.force
 
   -- If the unit was just distracted by an enemy, it means it was in combat.
@@ -121,12 +126,20 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     data.last_combat_tick = game.tick
     data.regroup_position = unit.position 
   end
+  
+  -- FIX: Add check for successful event to break patrol loop
+  if event and event.result == defines.behavior_result.success then
+      -- Check if we are at our patrol destination
+      if data.destination and util.distance(unit.position, data.destination) < 5 then
+          data.destination = nil -- Clear destination to get a new one
+      end
+  end
 
   -- === PRIORITY 1: AGGRO TARGET (Retaliation) ===
   -- This is the highest priority, from being attacked.
   --[[
   -- Disabling this feature to improve performance.
-  -- This relies on data from on_entity_damaged, which is now disabled.
+  -- This logic relies on on_entity_damaged, which is now disabled.
   local aggro_target = data.aggro_target
   if aggro_target then
     if aggro_target.valid then
@@ -147,7 +160,7 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
       data.aggro_target = nil
     end
   end
-  ]]
+  --]]
 
   -- === PRIORITY 2: 960-TILE SEARCH (Find Nests) ===
   -- Look for distant targets like spawners.
@@ -171,19 +184,10 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     data.last_combat_tick = game.tick
     data.regroup_position = data.target.position
     
-    -- set_command_func(unit_data, {
-    --   type = defines.command.attack,
-    --   target = data.target,
-    --   distraction = defines.distraction.by_enemy
-    -- })
     set_command_func(unit_data, {
-      type = defines.command.go_to_location,
-      destination = {
-        x = data.target.position.x + math.random(8), 
-        y = data.target.position.y + math.random(8)
-      },
-      distraction = defines.distraction.by_enemy,
-      radius = 4
+      type = defines.command.attack,
+      target = data.target,
+      distraction = defines.distraction.by_enemy
     })
     return
   end
@@ -201,19 +205,10 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     data.last_combat_tick = game.tick
     data.regroup_position = nearby_enemy.position
     
-    -- set_command_func(unit_data, {
-    --   type = defines.command.attack,
-    --   target = nearby_enemy,
-    --   distraction = defines.distraction.by_enemy
-    -- })
     set_command_func(unit_data, {
-      type = defines.command.go_to_location,
-      destination = {
-        x = data.regroup_position.x + math.random(8), 
-        y = data.regroup_position.y + math.random(8)
-      },
-      distraction = defines.distraction.by_enemy,
-      radius = 4
+      type = defines.command.attack,
+      target = nearby_enemy,
+      distraction = defines.distraction.by_enemy
     })
     return
   end
