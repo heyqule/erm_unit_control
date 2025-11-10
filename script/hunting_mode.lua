@@ -171,10 +171,19 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     data.last_combat_tick = game.tick
     data.regroup_position = data.target.position
     
+    -- set_command_func(unit_data, {
+    --   type = defines.command.attack,
+    --   target = data.target,
+    --   distraction = defines.distraction.by_enemy
+    -- })
     set_command_func(unit_data, {
-      type = defines.command.attack,
-      target = data.target,
-      distraction = defines.distraction.by_enemy
+      type = defines.command.go_to_location,
+      destination = {
+        x = data.target.position.x + math.random(8), 
+        y = data.target.position.y + math.random(8)
+      },
+      distraction = defines.distraction.by_enemy,
+      radius = 4
     })
     return
   end
@@ -192,10 +201,19 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     data.last_combat_tick = game.tick
     data.regroup_position = nearby_enemy.position
     
+    -- set_command_func(unit_data, {
+    --   type = defines.command.attack,
+    --   target = nearby_enemy,
+    --   distraction = defines.distraction.by_enemy
+    -- })
     set_command_func(unit_data, {
-      type = defines.command.attack,
-      target = nearby_enemy,
-      distraction = defines.distraction.by_enemy
+      type = defines.command.go_to_location,
+      destination = {
+        x = data.regroup_position.x + math.random(8), 
+        y = data.regroup_position.y + math.random(8)
+      },
+      distraction = defines.distraction.by_enemy,
+      radius = 4
     })
     return
   end

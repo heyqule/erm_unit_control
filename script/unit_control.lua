@@ -735,11 +735,78 @@ local register_to_attack = function(unit_data)
   insert(script_data.attack_register, unit_data)
 end
 
+
+
+local type_handlers = {
+  [next_command_type.move] = function(data)
+    local unit_data = data.unit_data
+    local next_command = data.next_command
+    set_command(unit_data, next_command)
+    unit_data.destination = next_command.destination
+    unit_data.distraction = next_command.distraction
+    table.remove(unit_data.command_queue, 1)
+  end,
+  [next_command_type.patrol] = function(data)
+    local unit_data = data.unit_data
+    local next_command = data.next_command
+    local entity = data.entity
+    if next_command.destination_index == "initial" then
+      next_command.destinations[1] = entity.position
+      next_command.destination_index = 2
+    else
+      next_command.destination_index = next_command.destination_index + 1
+    end
+    local next_destination = next_command.destinations[next_command.destination_index]
+    if not next_destination then
+      next_command.destination_index = 1
+      next_destination = next_command.destinations[next_command.destination_index]
+    end
+    set_command(unit_data,
+            {
+              type = defines.command.go_to_location,
+              destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
+              radius = 1,
+              distraction = next_command.distraction
+            })
+  end,
+  [next_command_type.patrol] = function(data)
+    local unit_data = data.unit_data
+    register_to_attack(unit_data)
+  end,
+  [next_command_type.idle] = function(data)
+    local unit_data = data.unit_data
+    unit_data.command_queue = {}
+    set_unit_idle(unit_data, true)
+  end,
+  [next_command_type.scout] = function(data)
+    local unit_data = data.unit_data
+    set_scout_command(unit_data, event.result == defines.behavior_result.fail)
+  end,
+  [next_command_type.hunt] = function(data)
+    local unit_data = data.unit_data
+    HuntingMode.update(unit_data, set_command, set_unit_idle, event)
+  end,
+  [next_command_type.qrf] = function(data)
+    local unit_data = data.unit_data
+    QRFMode.update(unit_data, set_command)
+  end,
+  [next_command_type.perimeter] = function(data)
+    local unit_data = data.unit_data
+    PerimeterMode.update(unit_data, set_command, set_unit_idle)
+  end,
+  [next_command_type.hold_position] = function(data)
+    local unit_data = data.unit_data
+    set_command(unit_data, hold_position_command)
+  end,
+  [next_command_type.follow] = function(data)
+    -- ignore, process somewhere else
+  end
+}
+
 -- This is the core logic that runs when a unit finishes a command.
 -- It checks the unit's `command_queue` and issues the next command
 -- (e.g., move, patrol, hunt, etc.).
-local process_command_queue
-process_command_queue = function(unit_data, event)
+local process_command_queue = function(unit_data, event)
   local entity = unit_data.entity
   if not (entity and entity.valid) then
     if event then
@@ -772,70 +839,14 @@ process_command_queue = function(unit_data, event)
 
   local type = next_command.command_type
 
-  if type == next_command_type.move then
-    set_command(unit_data, next_command)
-    unit_data.destination = next_command.destination
-    unit_data.distraction = next_command.distraction
-    table.remove(command_queue, 1)
-    return
-  end
-
-  if type == next_command_type.patrol then
-    if next_command.destination_index == "initial" then
-      next_command.destinations[1] = entity.position
-      next_command.destination_index = 2
-    else
-      next_command.destination_index = next_command.destination_index + 1
-    end
-    local next_destination = next_command.destinations[next_command.destination_index]
-    if not next_destination then
-      next_command.destination_index = 1
-      next_destination = next_command.destinations[next_command.destination_index]
-    end
-    set_command(unit_data,
-    {
-      type = defines.command.go_to_location,
-      destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
-      radius = 1,
-      distraction = next_command.distraction
+  if type_handlers[type] then
+    type_handlers[type]({
+      unit_data = unit_data,
+      entity = entity,
+      event = event,
+      next_command = next_command
     })
-    return
   end
-
-  if type == next_command_type.attack then
-    return register_to_attack(unit_data)
-  end
-
-  if type == next_command_type.idle then
-    unit_data.command_queue = {}
-    return set_unit_idle(unit_data, true)
-  end
-
-  if type == next_command_type.scout then
-    return set_scout_command(unit_data, result == defines.behavior_result.fail)
-  end
-
-  -- Handle special modded modes by calling their 'update' functions
-  if type == next_command_type.hunt then
-    return HuntingMode.update(unit_data, set_command, set_unit_idle, event)
-  end
-  
-  if type == next_command_type.qrf then
-    return QRFMode.update(unit_data, set_command)
-  end
-
-  if type == next_command_type.perimeter then
-    return PerimeterMode.update(unit_data, set_command, set_unit_idle)
-  end
-
-  if type == next_command_type.follow then
-    -- 'follow' logic is handled elsewhere
-  end
-
-  if type == next_command_type.hold_position then
-    return set_command(unit_data, hold_position_command)
-  end
-
 end
 
 -- This table maps all GUI button clicks to their functions

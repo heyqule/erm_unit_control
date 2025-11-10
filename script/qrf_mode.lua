@@ -29,10 +29,19 @@ function QRFMode.update(unit_data, set_command_func)
   
   if target then
     -- Enemy found! Engage.
+    --set_command_func(unit_data, {
+    --  type = defines.command.attack,
+    --  target = target,
+    --  distraction = defines.distraction.by_enemy
+    --})
     set_command_func(unit_data, {
-      type = defines.command.attack,
-      target = target,
-      distraction = defines.distraction.by_enemy
+      type = defines.command.go_to_location,
+      destination = {
+        x = target.position.x + math.random(8),
+        y = target.position.y + math.random(8)
+      },
+      distraction = defines.distraction.by_enemy,
+      radius = 4
     })
   else
     -- No enemies found in the perimeter.
