@@ -780,10 +780,12 @@ local type_handlers = {
   end,
   [next_command_type.scout] = function(data)
     local unit_data = data.unit_data
+    local event = data.event
     set_scout_command(unit_data, event.result == defines.behavior_result.fail)
   end,
   [next_command_type.hunt] = function(data)
     local unit_data = data.unit_data
+    local event = data.event
     HuntingMode.update(unit_data, set_command, set_unit_idle, event)
   end,
   [next_command_type.qrf] = function(data)
