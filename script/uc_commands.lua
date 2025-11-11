@@ -176,12 +176,18 @@ local hold_position_command = {type = defines.command.stop, speed = 0}
 
 local type_handlers = {
   [next_command_type.move] = function(data)
-    -- FIX: This is the solution to the "wandering" bug.
-    -- A 'move' command in the queue has *already* been completed.
-    -- We just need to remove it so the processor can see the *next*
-    -- command, or set the unit to idle if the queue is now empty.
-    -- We DO NOT re-issue the command here.
-    table.remove(data.unit_data.command_queue, 1)
+    -- This handler is called when a 'move' command is at the front
+    -- of the queue (e.g., after a previous command completed).
+    local unit_data = data.unit_data
+    local command_to_run = data.next_command -- This is the next waypoint
+    
+    -- 1. Remove this command from the *pending* queue
+    table.remove(unit_data.command_queue, 1)
+    
+    -- 2. Execute it, making it the new *active* command for the unit
+    -- The 'event' parameter is nil here, so process_command_queue
+    -- will check the queue again when this new command completes.
+    Commands.set_command(unit_data, command_to_run)
   end,
   [next_command_type.patrol] = function(data)
     local unit_data = data.unit_data
