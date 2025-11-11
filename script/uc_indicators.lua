@@ -6,7 +6,6 @@ local util = require("script/script_util")
 
 local Indicators = {}
 
-local script_data = Core.script_data
 local get_unit_number = Core.get_unit_number
 local empty_position = {0,0}
 
@@ -19,6 +18,7 @@ function Indicators.add_target_indicator(unit_data)
   if not (target and target.valid) then return end
   local target_index = get_unit_number(target)
 
+  local script_data = storage.unit_control
   local target_indicators = script_data.target_indicators[target_index]
   if not target_indicators then
     target_indicators = {}
@@ -61,6 +61,7 @@ function Indicators.remove_target_indicator(unit_data)
   if not target or not target.valid then return end
   
   local target_index = get_unit_number(target)
+  local script_data = storage.unit_control
   local target_indicators = script_data.target_indicators[target_index]
   if not target_indicators then return end
 
@@ -351,6 +352,7 @@ end
 -- Clears and redraws all indicators for all units
 function Indicators.reset_rendering()
   rendering.clear("erm_unit_control")
+  local script_data = storage.unit_control
   for k, unit_data in pairs (script_data.units) do
     local unit = unit_data.entity
     if unit and unit.valid then

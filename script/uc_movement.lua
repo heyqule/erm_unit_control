@@ -10,9 +10,13 @@ local util = require("script/script_util")
 
 local Movement = {}
 
-local script_data = Core.script_data
 local next_command_type = Core.next_command_type
 local tool_names = Core.tool_names
+
+local function unset_selected_unit(player_index)
+  local script_data = storage.unit_control
+  script_data.selected_units[player_index] = nil
+end
 
 -- Issues 'stop' commands to the selected group
 function Movement.stop_group(player, queue)
@@ -21,6 +25,7 @@ function Movement.stop_group(player, queue)
     return
   end
   local idle_queue = {command_type = next_command_type.idle}
+  local script_data = storage.unit_control
   local units = script_data.units
   for unit_number, unit in pairs (group) do
     local unit_data = units[unit_number]
@@ -41,6 +46,7 @@ function Movement.hold_position_group(player, queue)
   end
   local hold_position_queue = {command_type = next_command_type.hold_position}
   local hold_position_command = {type = defines.command.stop, speed = 0}
+  local script_data = storage.unit_control
   local units = script_data.units
   for unit_number, unit in pairs (group) do
     local unit_data = units[unit_number]
@@ -128,6 +134,7 @@ function Movement.make_move_command(param)
   local append = param.append
   local type = defines.command.go_to_location
   local find = surface.find_non_colliding_position
+  local script_data = storage.unit_control
   local units = script_data.units
   local i = 0
 
@@ -173,7 +180,7 @@ end
 local move_units = function(event)
   local group = Selection.get_selected_units(event.player_index)
   if not group then
-    script_data.selected_units[event.player_index] = nil
+    unset_selected_unit(event.player_index)
     return
   end
   local player = game.players[event.player_index]
@@ -191,7 +198,7 @@ end
 function Movement.move_units_to_position(player, position, append)
   local group = Selection.get_selected_units(player.index)
   if not group then
-    script_data.selected_units[player.index] = nil
+    unset_selected_unit(event.player_index)
     return
   end
   Movement.make_move_command
@@ -209,7 +216,7 @@ end
 local attack_move_units = function(event)
   local group = Selection.get_selected_units(event.player_index)
   if not group then
-    script_data.selected_units[event.player_index] = nil
+    unset_selected_unit(event.player_index)
     return
   end
   local player = game.players[event.player_index]
@@ -227,7 +234,7 @@ end
 function Movement.attack_move_units_to_position(player, position, append)
   local group = Selection.get_selected_units(player.index)
   if not group then
-    script_data.selected_units[player.index] = nil
+    unset_selected_unit(player.index)
     return
   end
   Movement.make_move_command
@@ -263,6 +270,7 @@ function Movement.make_patrol_command(param)
   local type = defines.command.go_to_location
   local find = surface.find_non_colliding_position
   local insert = table.insert
+  local script_data = storage.unit_control
   local units = script_data.units
 
   local size, speed = get_group_size_and_speed(group)
@@ -369,6 +377,7 @@ end
 -- Generates attack commands for a group
 function Movement.make_attack_command(group, entities, append)
   if #entities == 0 then return end
+  local script_data = storage.unit_control
   local units_table = script_data.units
   local next_command =
   {
@@ -398,6 +407,7 @@ end
 -- Generates follow commands for a group
 function Movement.make_follow_command(group, target, append)
   if not (target and target.valid) then return end
+  local script_data = storage.unit_control
   local units_table = script_data.units
   for unit_number, unit in pairs (group) do
     local commandable = (unit.type == "unit")

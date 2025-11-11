@@ -9,7 +9,6 @@ local PerimeterMode = require("perimeter_mode")
 
 local Commands = {}
 
-local script_data = Core.script_data
 local next_command_type = Core.next_command_type
 
 -- Tells a unit to perform a specific Factorio command (like 'go_to_location')
@@ -169,6 +168,7 @@ end
 
 -- Adds a unit to a list to be processed for an attack command
 function Commands.register_to_attack(unit_data)
+  local script_data = storage.unit_control
   table.insert(script_data.attack_register, unit_data)
 end
 
@@ -249,6 +249,7 @@ function Commands.process_command_queue(unit_data, event)
   local entity = unit_data.entity
   if not (entity and entity.valid) then
     if event then
+      local script_data = storage.unit_control
       script_data.units[event.unit_number] = nil
     end
     return
@@ -328,6 +329,7 @@ end
 -- Periodically processes the list of units waiting to attack
 function Commands.process_attack_register(tick)
   if tick % 31 ~= 0 then return end
+  local script_data = storage.unit_control
   local register = script_data.attack_register
   if not next(register) then return end
   script_data.attack_register = {}

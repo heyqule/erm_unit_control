@@ -10,13 +10,15 @@ local util = require("script/script_util")
 
 local Entity = {}
 
-local script_data = Core.script_data
+
 
 -- Cleans up a unit from the mod's data when it's removed
 function Entity.deregister_unit(entity)
   if not (entity and entity.valid) then return end
   local unit_number = entity.unit_number
   if not unit_number then return end
+  
+  local script_data = storage.unit_control
   local unit = script_data.units[unit_number]
   if not unit then return end
   script_data.units[unit_number] = nil
@@ -47,8 +49,10 @@ function Entity.on_entity_removed(event)
   if not (entity and entity.valid) then return end
   local unit_number = entity.unit_number
   if not unit_number then return end
-  if not script_data.units[entity.unit_number] then return end
 
+    local script_data = storage.unit_control  
+  if not script_data.units[entity.unit_number] then return end
+    
   script_data.target_indicators[Core.get_unit_number(entity)] = nil
   
   -- Check if this unit was in any control group and mark GUI for refresh
@@ -117,6 +121,8 @@ function Entity.on_entity_settings_pasted(event)
   local destination = event.destination
   if not (source and source.valid and destination and destination.valid) then return end
   Entity.deregister_unit(destination)
+  
+  local script_data = storage.unit_control
   local unit_data = script_data.units[source.unit_number]
   if not unit_data then return end
   local copy = util.copy(unit_data)
@@ -129,8 +135,9 @@ end
 -- Copies the spawner's command queue to the new unit
 function Entity.on_entity_spawned(event)
   local unit = event.entity
-  if not (unit and unit.valid) then return end
-
+  if not (unit and unit.valid) then return end 
+    
+    local script_data = storage.unit_control 
   local source_data = script_data.units[unit.unit_number]
   if not source_data then return end
 
