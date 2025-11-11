@@ -104,8 +104,9 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
   end
   
   -- Get or create the shared data for this group from global storage
-  if not storage.script_data.group_hunt_data[group] then
-    storage.script_data.group_hunt_data[group] = {
+  local script_data = storage.unit_control
+  if not script_data.group_hunt_data[group] then
+    script_data.group_hunt_data[group] = {
       target = nil,
       destination = nil,
       next_enemy_search_tick = 0,
@@ -116,7 +117,7 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     }
   end
   -- FIX: Changed 'storage.unit_control' to 'Core.script_data'
-  local data = storage.script_data.group_hunt_data[group]
+  local data = script_data.group_hunt_data[group]
   local unit_force = unit.force
 
   -- If the unit was just distracted by an enemy, it means it was in combat.
