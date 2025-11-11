@@ -111,7 +111,7 @@ function Module.Selection.process_unit_selection(entities, player)
   local types = {}
   
   -- Apply selection limit
-  local limit = settings.global["erm-unit-control-selection-limit"].value
+  local limit = script_data.max_selectable_units_limit
   if #entities > limit then
     -- Trim the table to only the first 'limit' units
     for i = limit + 1, #entities do

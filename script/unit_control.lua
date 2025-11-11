@@ -23,9 +23,6 @@ local hotkeys = Core.hotkeys
 local tool_names = Core.tool_names
 local script_events = Core.script_events
 
--- FIX: Add a file-local flag to safely trigger setup after on_load
-local needs_post_load_setup = false
-
 
 -- ===================================================================
 -- ## HOTKEY AND CLICK HANDLERS ##
@@ -293,32 +290,22 @@ end
 -- ===================================================================
 
 local on_tick = function(event)
-  -- FIX: Run the post-load setup safely inside on_tick
-  if needs_post_load_setup then
-    -- Clear the local flag
-    needs_post_load_setup = false
-    
-    -- This logic was moved from on_load
-    for player_index, frame in pairs(script_data.open_frames) do
-      if frame and frame.valid then
-        script_data.marked_for_refresh[player_index] = true
-      else
-        script_data.open_frames[player_index] = nil -- Clean up invalid frames
-      end
-    end
-    
-    -- Set the *storage* flag to trigger rendering reset on the *next* tick
-    script_data.needs_render_reset = true
-  end
-
-  -- FIX: This block handles the rendering reset
-  if script_data.needs_render_reset then
-    Indicators.reset_rendering()
-    script_data.needs_render_reset = nil -- Clear the flag
-  end
-
   Commands.process_attack_register(event.tick)
   GUI.check_refresh_gui()
+end
+
+-- FIX: Run the post-load setup safely inside on_tick
+-- This logic was moved from on_load
+local function reset_gui()
+  for player_index, frame in pairs(script_data.open_frames) do
+    if frame and frame.valid then
+      script_data.marked_for_refresh[player_index] = true
+    else
+      script_data.open_frames[player_index] = nil -- Clean up invalid frames
+    end
+  end
+
+  Indicators.reset_rendering()
 end
 
 -- FIX: This wrapper function is the solution to the "wandering" bug.
@@ -395,6 +382,12 @@ local set_map_settings = function()
   settings.max_failed_behavior_count = 5
 end
 
+local on_runtime_mod_setting_changed = function(event)
+  if event.setting_type == "runtime-global" and event.setting == "erm-unit-control-selection-limit" then
+    script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+  end
+end
+
 -- ===================================================================
 -- ## REMOTE INTERFACE ##
 -- ===================================================================
@@ -442,6 +435,7 @@ unit_control.events =
   
   -- FIX: Point this event to our new wrapper function
   [defines.events.on_ai_command_completed] = on_ai_command_completed_wrapper,
+  [defines.events.on_runtime_mod_setting_changed] = on_runtime_mod_setting_changed,
   
   [hotkeys.suicide] = suicide,
   [hotkeys.suicide_all] = suicide_all,
@@ -500,8 +494,10 @@ unit_control.on_init = function()
   storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
   storage.unit_control.control_groups = storage.unit_control.control_groups or {}
   
+  script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+  
   set_map_settings()
-  Indicators.reset_rendering() -- FIX: Add this call here
+  reset_gui()
 end
 
 -- FIX: Replaced function to handle data migration (Bug #1)
@@ -520,13 +516,16 @@ unit_control.on_configuration_changed = function(configuration_changed_data)
   for k, v in pairs(migrated_data) do
     script_data[k] = v
   end
+
+  script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
   
   -- Now script_data, Core.script_data, and storage.unit_control
   -- all point to the same, correct, migrated table.
   storage.unit_control = script_data
+
   
   set_map_settings()
-  Indicators.reset_rendering()
+  reset_gui()
   script_data.last_location = script_data.last_location or {}
 end
 
@@ -534,7 +533,6 @@ end
 unit_control.on_load = function()
   -- This function MUST NOT modify the 'storage' table.
   -- We set a file-local flag to tell on_tick to run the setup logic.
-  needs_post_load_setup = true
 end
 
 return unit_control

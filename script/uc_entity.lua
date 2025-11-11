@@ -47,6 +47,7 @@ function Entity.on_entity_removed(event)
   if not (entity and entity.valid) then return end
   local unit_number = entity.unit_number
   if not unit_number then return end
+  if not script_data.units[entity.unit_number] then return end
 
   script_data.target_indicators[Core.get_unit_number(entity)] = nil
   
@@ -127,16 +128,11 @@ end
 -- Event handler for when a unit spawner creates a unit
 -- Copies the spawner's command queue to the new unit
 function Entity.on_entity_spawned(event)
-  local source = event.spawner
   local unit = event.entity
-  if not (source and source.valid and unit and unit.valid) then return end
-  if unit.type ~= "unit" then return end
-  
-  local source_data = script_data.units[source.unit_number]
-  if not source_data then
-    unit.commandable.set_command({type = defines.command.wander, radius = source.get_radius()})
-    return
-  end
+  if not (unit and unit.valid) then return end
+
+  local source_data = script_data.units[unit.unit_number]
+  if not source_data then return end
 
   local queue = source_data.command_queue
   local unit_data =

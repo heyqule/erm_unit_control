@@ -231,7 +231,7 @@ end
 -- Clears all indicators for a unit (destination lines, etc.)
 function Indicators.clear_indicators(unit_data)
   if not unit_data.indicators then return end
-  for indicator, bool in pairs (unit_data.indicators) do
+  for _, indicator in pairs (unit_data.indicators) do
     indicator.destroy()
   end
   unit_data.indicators = nil
@@ -273,7 +273,7 @@ function Indicators.add_unit_indicators(unit_data)
 
   -- Draw line to current destination
   if unit_data.destination then
-    indicators[draw_line
+    local draw_obj = draw_line
     {
       color = get_color(unit_data.distraction),
       width = 1,
@@ -284,12 +284,13 @@ function Indicators.add_unit_indicators(unit_data)
       gap_length = gap_length,
       dash_length = dash_length,
       draw_on_ground = true
-    }] = true
+    }
+    indicators[draw_obj.id] = draw_obj
   end
 
   -- Draw line to a target entity
   if unit_data.destination_entity and unit_data.destination_entity.valid then
-    indicators[draw_line
+    local draw_obj = draw_line
     {
       color = get_color(unit_data.distraction),
       width = 1,
@@ -300,14 +301,15 @@ function Indicators.add_unit_indicators(unit_data)
       gap_length = gap_length,
       dash_length = dash_length,
       draw_on_ground = true
-    }] = true
+    }
+    indicators[draw_obj.id] = draw_obj
   end
 
   -- Draw lines for all queued commands
   local position = unit_data.destination or unit.position
   for k, command in pairs (unit_data.command_queue) do
     if command.command_type == Core.next_command_type.move then
-      indicators[draw_line
+      local draw_obj = draw_line
       {
         color = get_color(command.distraction),
         width = 1,
@@ -318,7 +320,8 @@ function Indicators.add_unit_indicators(unit_data)
         gap_length = gap_length,
         dash_length = dash_length,
         draw_on_ground = true
-      }] = true
+      }
+      indicators[draw_obj.id] = draw_obj
       position = command.destination
     end
 
@@ -327,7 +330,7 @@ function Indicators.add_unit_indicators(unit_data)
       for k = 1, #command.destinations do
         local to = command.destinations[k]
         local from = command.destinations[k + 1] or command.destinations[1]
-        indicators[draw_line
+        local draw_obj = draw_line
         {
           color = {b = 0.5, g = 0.2, a = 0.05},
           width = 1,
@@ -338,7 +341,8 @@ function Indicators.add_unit_indicators(unit_data)
           gap_length = gap_length,
           dash_length = dash_length,
           draw_on_ground = true,
-        }] = true
+        }
+        indicators[draw_obj.id] = draw_obj
       end
     end
   end
