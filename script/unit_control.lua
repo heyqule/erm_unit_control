@@ -18,7 +18,7 @@ local GUI = SelectionAndGUI.GUI
 local ControlGroups = SelectionAndGUI.ControlGroups
 
 -- Get shared data from the Core
-local script_data = Core.script_data
+local script_data
 local hotkeys = Core.hotkeys
 local tool_names = Core.tool_names
 local script_events = Core.script_events
