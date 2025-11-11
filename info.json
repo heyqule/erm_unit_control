@@ -4,7 +4,7 @@
   "date": "2025-03-11",
   "title": "ERM Unit Control",
   "author": "heyqule",
-  "description": "Fork of Klonan's Unit Control. Updated for Factorio 2.0.  This is a temporary solution until Klonan updates his.",
+  "description": "Based off Klonan's Unit Control. Updated for Factorio 2.0 with additional features. e.g unit control groups, additional group strategies.",
   "factorio_version": "2.0",
   "dependencies": [
     "base >= 2.0.34",
