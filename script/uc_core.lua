@@ -48,7 +48,7 @@ Core.script_data =
   last_location = {},
   group_hunt_data = {},
   control_groups = {},
-  needs_render_reset = false -- FIX: Add this flag for on_load
+  max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
 }
 
 -- A simple 'enum' to define our custom command types
@@ -71,6 +71,10 @@ Core.script_events =
 {
   on_unit_spawned = script.generate_event_name()
 }
+
+Core.get_storage_data =  function()
+  return storage.unit_control
+end
 
 -- Simple helper for distance
 Core.distance = function(position_1, position_2)

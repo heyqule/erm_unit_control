@@ -494,8 +494,6 @@ unit_control.on_init = function()
   storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
   storage.unit_control.control_groups = storage.unit_control.control_groups or {}
   
-  script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
-  
   set_map_settings()
   reset_gui()
 end
@@ -516,8 +514,6 @@ unit_control.on_configuration_changed = function(configuration_changed_data)
   for k, v in pairs(migrated_data) do
     script_data[k] = v
   end
-
-  script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
   
   -- Now script_data, Core.script_data, and storage.unit_control
   -- all point to the same, correct, migrated table.
