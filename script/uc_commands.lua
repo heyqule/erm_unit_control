@@ -9,6 +9,7 @@ local PerimeterMode = require("perimeter_mode")
 
 local Commands = {}
 
+local script_data = Core.script_data
 local next_command_type = Core.next_command_type
 
 -- Tells a unit to perform a specific Factorio command (like 'go_to_location')
@@ -168,7 +169,6 @@ end
 
 -- Adds a unit to a list to be processed for an attack command
 function Commands.register_to_attack(unit_data)
-  local script_data = storage.unit_control
   table.insert(script_data.attack_register, unit_data)
 end
 
@@ -181,7 +181,20 @@ local type_handlers = {
     -- We just need to remove it so the processor can see the *next*
     -- command, or set the unit to idle if the queue is now empty.
     -- We DO NOT re-issue the command here.
-    table.remove(data.unit_data.command_queue, 1)
+    -- table.remove(data.unit_data.command_queue, 1)
+
+    -- ##### BEGIN FIX FOR QUEUED MOVEMENT #####
+    -- The old "fix" above was wrong. It stopped the "wandering" for single-clicks
+    -- (which don't even use this handler) but broke queued movement.
+    -- This is the *correct* logic, taken from the original mod.
+    -- It issues the command from the queue, then removes it.
+    local unit_data = data.unit_data
+    local next_command = data.next_command
+    Commands.set_command(unit_data, next_command)
+    unit_data.destination = next_command.destination
+    unit_data.distraction = next_command.distraction
+    table.remove(unit_data.command_queue, 1)
+    -- ##### END FIX FOR QUEUED MOVEMENT #####
   end,
   [next_command_type.patrol] = function(data)
     local unit_data = data.unit_data
@@ -249,7 +262,6 @@ function Commands.process_command_queue(unit_data, event)
   local entity = unit_data.entity
   if not (entity and entity.valid) then
     if event then
-      local script_data = storage.unit_control
       script_data.units[event.unit_number] = nil
     end
     return
@@ -329,7 +341,6 @@ end
 -- Periodically processes the list of units waiting to attack
 function Commands.process_attack_register(tick)
   if tick % 31 ~= 0 then return end
-  local script_data = storage.unit_control
   local register = script_data.attack_register
   if not next(register) then return end
   script_data.attack_register = {}

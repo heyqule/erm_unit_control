@@ -5,12 +5,15 @@ local Core = require("script/uc_core")
 local Commands = require("script/uc_commands")
 local Indicators = require("script/uc_indicators")
 -- FIX: Removed this require to break the circular dependency.
--- We will "lazy load" it inside the button click handlers.
 -- local Movement = require("script/uc_movement") 
 local util = require("script/script_util")
 
+local script_data = Core.script_data
 local next_command_type = Core.next_command_type
 local tool_names = Core.tool_names
+
+-- FIX: Add a local variable to hold the injected module
+local Movement_Module = nil
 
 -- Create a main table to return all functions
 local Module = {
@@ -26,7 +29,6 @@ local Module = {
 
 -- Gets the currently selected units for a player
 function Module.Selection.get_selected_units(player_index)
-  local script_data = storage.unit_control
   local selected = script_data.selected_units[player_index]
   if not selected then return end
 
@@ -47,7 +49,6 @@ end
 -- Removes a unit from a player's selection
 function Module.Selection.deselect_units(unit_data)
   if unit_data.player then
-    local script_data = storage.unit_control
     script_data.marked_for_refresh[unit_data.player] = true
     unit_data.player = nil
   end
@@ -57,7 +58,6 @@ end
 
 -- Clears a player's entire selection
 function Module.Selection.clear_selected_units(player)
-  local script_data = storage.unit_control
   local units = script_data.units
   local group = Module.Selection.get_selected_units(player.index)
   if not group then return end
@@ -74,7 +74,6 @@ local is_double_click = function(event)
   local radius = util.radius(this_area)
   if radius > 1 then return end
 
-  local script_data = storage.unit_control
   local last_selection_tick = script_data.last_selection_tick[event.player_index]
   script_data.last_selection_tick[event.player_index] = event.tick
 
@@ -108,14 +107,13 @@ end
 function Module.Selection.process_unit_selection(entities, player)
   player.clear_cursor()
   local player_index = player.index
-  local script_data = storage.unit_control
   local map = script_data.unit_unselectable
   local group = Module.Selection.get_selected_units(player_index) or {}
   local units = script_data.units
   local types = {}
   
   -- Apply selection limit
-  local limit = script_data.max_selectable_units_limit
+  local limit = settings.global["erm-unit-control-selection-limit"].value
   if #entities > limit then
     -- Trim the table to only the first 'limit' units
     for i = limit + 1, #entities do
@@ -191,7 +189,6 @@ function Module.ControlGroups.set_control_group(event, group_number)
   local player = game.get_player(player_index)
   if not player then return end
   
-  local script_data = storage.unit_control
   script_data.control_groups[player_index] = script_data.control_groups[player_index] or {}
   group_number = tonumber(group_number)
   
@@ -224,7 +221,6 @@ function Module.ControlGroups.select_control_group(event, group_number)
   if not player then return end
   
   group_number = tonumber(group_number)
-  local script_data = storage.unit_control
   if not script_data.control_groups[player_index] or not script_data.control_groups[player_index][group_number] then
     player.play_sound({path = "utility/cannot_build"})
     return
@@ -328,7 +324,6 @@ function Module.ControlGroups.assign_control_group_remote(player_index, control_
   end
 
   -- Ensure unit is registered in our mod's data
-  local script_data = storage.unit_control
   if not script_data.units[unit_number] then
     local unit_data = {
         entity = unit,
@@ -367,7 +362,6 @@ end
 
 -- Gets the player's main unit control GUI frame
 local get_frame = function(player_index)
-  local script_data = storage.unit_control
   local frame = script_data.open_frames[player_index]
   if not (frame and frame.valid) then
     script_data.open_frames[player_index] = nil
@@ -422,14 +416,20 @@ local gui_actions =
     player.cursor_stack.set_stack{name = tool_names.unit_follow_tool}
   end,
   hold_position_button = function(event)
-    -- FIX: "Lazy load" the Movement module here
-    local Movement = require("script/uc_movement")
-    Movement.hold_position_group(game.get_player(event.player_index), event.shift)
+    -- FIX: Remove illegal require
+    -- local Movement = require("script/uc_movement")
+    -- FIX: Use the injected module
+    if Movement_Module then
+      Movement_Module.hold_position_group(game.get_player(event.player_index), event.shift)
+    end
   end,
   stop_button = function(event)
-    -- FIX: "Lazy load" the Movement module here
-    local Movement = require("script/uc_movement")
-    Movement.stop_group(game.get_player(event.player_index), event.shift)
+    -- FIX: Remove illegal require
+    -- local Movement = require("script/uc_movement")
+    -- FIX: Use the injected module
+    if Movement_Module then
+      Movement_Module.stop_group(game.get_player(event.player_index), event.shift)
+    end
   end,
   scout_button = function(event)
     local group = Module.Selection.get_selected_units(event.player_index)
@@ -438,7 +438,6 @@ local gui_actions =
     end
     local append = event.shift
     local scout_queue = {command_type = next_command_type.scout}
-    local script_data = storage.unit_control
     local units = script_data.units
     for unit_number, unit in pairs (group) do
       local unit_data = units[unit_number]
@@ -458,7 +457,6 @@ local gui_actions =
     if not group then return end
     
     local hunt_queue = {command_type = next_command_type.hunt}
-    local script_data = storage.unit_control
     local units = script_data.units
     for unit_number, unit in pairs(group) do
       local unit_data = units[unit_number]
@@ -478,7 +476,6 @@ local gui_actions =
     if not group then return end
     
     local qrf_queue = {command_type = next_command_type.qrf}
-    local script_data = storage.unit_control
     local units = script_data.units
     for unit_number, unit in pairs(group) do
       local unit_data = units[unit_number]
@@ -497,7 +494,6 @@ local gui_actions =
     if not group then return end
     
     local perimeter_queue = {command_type = next_command_type.perimeter}
-    local script_data = storage.unit_control
     local units = script_data.units
     for unit_number, unit in pairs(group) do
       local unit_data = units[unit_number]
@@ -520,7 +516,6 @@ local gui_actions =
     if event.shift then
       -- Additive selection (Shift-click)
       local player_index = player.index
-      local script_data = storage.unit_control
       local group_units_list = script_data.control_groups[player_index] and script_data.control_groups[player_index][group_number]
       if not group_units_list then return end 
 
@@ -567,7 +562,6 @@ local gui_actions =
     -- The GUI should close even if no units are selected.
     local group = Module.Selection.get_selected_units(event.player_index)
     
-    local script_data = storage.unit_control
     if group then
       local units = script_data.units
       for unit_number, entity in pairs (group) do
@@ -592,7 +586,6 @@ local gui_actions =
     if not group then return end
     local right = (event.button == defines.mouse_button_type.right)
     local left = (event.button == defines.mouse_button_type.left)
-    local script_data = storage.unit_control
     local units = script_data.units
 
     if right then
@@ -668,7 +661,6 @@ function Module.GUI.make_unit_gui(player)
   local index = player.index
   local frame = get_frame(index)
   if not (frame and frame.valid) then return end
-  local script_data = storage.unit_control
   util.deregister_gui(frame, script_data.button_actions)
 
   local group = Module.Selection.get_selected_units(index)
@@ -778,7 +770,6 @@ end
 
 -- Checks if any GUIs are marked for refresh and updates them
 function Module.GUI.check_refresh_gui()
-  local script_data = storage.unit_control
   if not next(script_data.marked_for_refresh) then return end
   for player_index, bool in pairs (script_data.marked_for_refresh) do
     -- FIX: Check that player is valid before getting GUI
@@ -797,7 +788,6 @@ end
 -- Opens the GUI for a player, creating it if it doesn't exist
 function Module.GUI.open_or_update_gui(player, types)
   local player_index = player.index
-  local script_data = storage.unit_control
   -- FIX: Handle deselection (Bug #1 & #2)
   if not next(types) and table_size(Module.Selection.get_selected_units(player_index) or {}) == 0 then
     -- No types and no units selected, so close the GUI.
@@ -864,7 +854,6 @@ end
 function Module.GUI.on_gui_click(event)
   local element = event.element
   if not (element and element.valid) then return end
-  local script_data = storage.unit_control
   local player_data = script_data.button_actions[event.player_index]
   if not player_data then return end
   local action = player_data[element.index]
@@ -882,5 +871,9 @@ function Module.GUI.on_gui_closed(event)
    end
 end
 
+-- FIX: Add the injection function
+function Module.GUI.inject_movement_module(movement_module)
+  Movement_Module = movement_module
+end
 
 return Module

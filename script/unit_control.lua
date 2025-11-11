@@ -17,12 +17,19 @@ local Selection = SelectionAndGUI.Selection
 local GUI = SelectionAndGUI.GUI
 local ControlGroups = SelectionAndGUI.ControlGroups
 
+-- FIX: Inject Movement module into GUI to break circular dependency
+GUI.inject_movement_module(Movement)
+
 -- Get shared data from the Core
+-- FIX: Get the *real* script_data, which will be populated on load
 local script_data = Core.script_data
 local hotkeys = Core.hotkeys
 local tool_names = Core.tool_names
 local script_events = Core.script_events
 
+-- This flag tells on_tick to run the setup functions
+-- It is set by on_load
+local needs_post_load_setup = false
 
 -- ===================================================================
 -- ## HOTKEY AND CLICK HANDLERS ##
@@ -45,9 +52,10 @@ local queue_hold_position_hotkey = function(event)
   Movement.hold_position_group(game.get_player(event.player_index), true)
 end
 
--- FIX: Added helper function for data migration (Bug #1)
 -- This function merges missing keys from `default` into `target`
 local function merge_defaults(target, default)
+    if not target then target = {} end
+    if not default then default = {} end
     for k, v in pairs(default) do
         if target[k] == nil then
             target[k] = v
@@ -138,7 +146,6 @@ local can_left_click = function(player, shift)
   if player.selected and not allow_selection[player.selected.type] then return end
   if not player.is_cursor_empty() then return end
   
-  -- FIX: Check if *any* GUI is open. If so, check if it's ours.
   if player.opened then
     if player.opened.name == "erm_unit_control_main_frame" then
       -- Our GUI is open. Allow clicks.
@@ -187,8 +194,6 @@ end
 
 -- Helper to detect double-right-clicks
 local is_double_right_click = function(event)
-  -- FIX: Use the dedicated R-click timer (Bug #4)
-  -- This relies on the migration fix in on_load/on_configuration_changed
   local last_selection_tick = script_data.last_Rclick_selection_tick[event.player_index]
   script_data.last_Rclick_selection_tick[event.player_index] = event.tick
 
@@ -206,8 +211,6 @@ local is_double_right_click = function(event)
     end
   end
   
-  -- Get double click delay from settings
-  -- FIX: Added a safe nil-check for the setting
   local setting = settings.global["erm-unit-control-double-click-delay"]
   local double_click_delay = (setting and setting.value) or 30
 
@@ -239,7 +242,6 @@ local right_click = function(event)
     end
   end
 
-  -- FIX: Swapped single-click and double-click logic to match user expectation
   if is_double_right_click(event) then
     Movement.move_units_to_position(player, event.cursor_position) -- Double-click is now Move
   else
@@ -289,14 +291,12 @@ end
 -- ## MISC AND LIFECYCLE FUNCTIONS ##
 -- ===================================================================
 
-local on_tick = function(event)
-  Commands.process_attack_register(event.tick)
-  GUI.check_refresh_gui()
-end
-
--- FIX: Run the post-load setup safely inside on_tick
--- This logic was moved from on_load
 local function reset_gui()
+  -- Add a nil-check just in case, though it should be fixed.
+  if not script_data.open_frames then
+    script_data.open_frames = {}
+  end
+
   for player_index, frame in pairs(script_data.open_frames) do
     if frame and frame.valid then
       script_data.marked_for_refresh[player_index] = true
@@ -308,7 +308,47 @@ local function reset_gui()
   Indicators.reset_rendering()
 end
 
--- FIX: This wrapper function is the solution to the "wandering" bug.
+
+local on_tick = function(event)
+  -- FIX: Run all post-load setup on the first tick after loading
+  if needs_post_load_setup then
+    needs_post_load_setup = false -- Clear the flag
+    
+    -- 1. FIX: Point Core.script_data to the *actual* loaded data
+    storage.unit_control = storage.unit_control or {}
+    local loaded_data = storage.unit_control
+    
+    -- 2. FIX: Now, copy the loaded data into Core.script_data
+    -- This makes Core.script_data the single source of truth.
+    for k, v in pairs(loaded_data) do
+      script_data[k] = v
+    end
+    
+    -- 3. FIX: Now, merge defaults *into* Core.script_data
+    -- This adds new keys (like .units) if they were missing from the save.
+    merge_defaults(script_data, Core.default_data)
+    
+    -- 4. FIX: Point storage back to the one true table
+    storage.unit_control = script_data
+    
+    -- 5. FIX: Safely load the setting *after* migration
+    script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+    
+    -- 6. Set the render reset flag (which will be caught next tick)
+    script_data.needs_render_reset = true
+  end
+  
+  -- Check for the render reset flag
+  if script_data.needs_render_reset then
+    script_data.needs_render_reset = false -- Clear the flag
+    reset_gui()
+  end
+
+  Commands.process_attack_register(event.tick)
+  GUI.check_refresh_gui()
+end
+
+-- This wrapper function is the solution to the "wandering" bug.
 -- It correctly gets the unit_data from the event before processing the queue.
 local function on_ai_command_completed_wrapper(event)
   local unit_data = script_data.units[event.unit_number]
@@ -433,7 +473,6 @@ unit_control.events =
   
   -- [defines.events.on_entity_damaged] = Entity.on_entity_damaged, -- Disabled for performance
   
-  -- FIX: Point this event to our new wrapper function
   [defines.events.on_ai_command_completed] = on_ai_command_completed_wrapper,
   [defines.events.on_runtime_mod_setting_changed] = on_runtime_mod_setting_changed,
   
@@ -488,47 +527,46 @@ unit_control.events =
 -- ## MOD LIFECYCLE FUNCTIONS ##
 -- ===================================================================
 
-unit_control.on_init = function()
-  storage.unit_control = storage.unit_control or script_data
-  -- Ensure new tables exist for migration
-  storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
-  storage.unit_control.control_groups = storage.unit_control.control_groups or {}
+-- FIX: This function now sets up the global tables correctly
+local function setup_global_data()
+  -- 1. Point storage to a table if it doesn't exist
+  storage.unit_control = storage.unit_control or {}
   
-  set_map_settings()
-  reset_gui()
+  -- 2. Point Core.script_data to the *actual* data in storage
+  -- We must clear our empty default first.
+  for k in pairs(Core.script_data) do Core.script_data[k] = nil end
+  -- Now, copy the *real data* into Core.script_data
+  for k, v in pairs(storage.unit_control) do Core.script_data[k] = v end
+  
+  -- 3. Merge defaults to add new keys (like .units)
+  merge_defaults(Core.script_data, Core.default_data)
+  
+  -- 4. Point storage back to Core.script_data to ensure they are the same table
+  storage.unit_control = Core.script_data
+  
+  -- 5. Safely load settings
+  Core.script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
 end
 
--- FIX: Replaced function to handle data migration (Bug #1)
-unit_control.on_configuration_changed = function(configuration_changed_data)
-  local loaded_data = storage.unit_control or {}
-  -- `script_data` (from line 30) is the default. Merge defaults into loaded data.
-  local migrated_data = merge_defaults(loaded_data, script_data)
-  
-  -- Clear the *contents* of Core.script_data (which script_data points to)
-  -- This keeps the table reference intact for all other modules.
-  for k in pairs(script_data) do
-    script_data[k] = nil
-  end
-  
-  -- Copy the migrated data *into* the Core.script_data table
-  for k, v in pairs(migrated_data) do
-    script_data[k] = v
-  end
-  
-  -- Now script_data, Core.script_data, and storage.unit_control
-  -- all point to the same, correct, migrated table.
-  storage.unit_control = script_data
-
-  
+unit_control.on_init = function()
+  setup_global_data()
   set_map_settings()
-  reset_gui()
+  -- Set the render reset flag for the first tick
+  script_data.needs_render_reset = true
+end
+
+unit_control.on_configuration_changed = function(configuration_changed_data)
+  setup_global_data()
+  set_map_settings()
+  -- Set the render reset flag for the first tick
+  script_data.needs_render_reset = true
   script_data.last_location = script_data.last_location or {}
 end
 
--- FIX: Replaced function to be save-game compliant
 unit_control.on_load = function()
   -- This function MUST NOT modify the 'storage' table.
   -- We set a file-local flag to tell on_tick to run the setup logic.
+  needs_post_load_setup = true
 end
 
 return unit_control

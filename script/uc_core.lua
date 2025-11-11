@@ -27,9 +27,8 @@ end
 -- ## END OF ON_LOAD FIX ##
 -- ===================================================================
 
--- This is the main global table that holds all the mod's
--- active data and state, like selected units, groups, etc.
-Core.script_data =
+-- FIX: Create a *separate* table for default data.
+Core.default_data =
 {
   button_actions = {},
   groups = {},
@@ -42,14 +41,19 @@ Core.script_data =
   marked_for_refresh = {},
   last_selection_tick = {},
   last_right_click_position = nil,
-  last_Rclick_selection_tick = {}, -- FIX: Added for Bug #4
+  last_Rclick_selection_tick = {},
   target_indicators = {},
   attack_register = {},
   last_location = {},
   group_hunt_data = {},
   control_groups = {},
-  max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+  max_selectable_units_limit = 9999 -- Default value
 }
+
+-- This is the main global table that holds all the mod's
+-- active data and state. It will be an empty table at first.
+-- unit_control.lua will point this to storage.unit_control on load.
+Core.script_data = {}
 
 -- A simple 'enum' to define our custom command types
 Core.next_command_type =
