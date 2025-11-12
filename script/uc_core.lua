@@ -48,7 +48,13 @@ Core.script_data =
   last_location = {},
   group_hunt_data = {},
   control_groups = {},
-  max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+  max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
+  --- Caches
+  --- These need to be reset during on_init or on_config_changed because of mod / mod setting changes.
+  radius_cache = {},
+  box_point_cache = {},
+  move_offset_positions = {},
+  unit_names = {}
 }
 
 -- A simple 'enum' to define our custom command types

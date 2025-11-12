@@ -18,7 +18,6 @@ local GUI = SelectionAndGUI.GUI
 local ControlGroups = SelectionAndGUI.ControlGroups
 
 -- Get shared data from the Core
-local script_data = Core.script_data
 local hotkeys = Core.hotkeys
 local tool_names = Core.tool_names
 local script_events = Core.script_events
@@ -71,15 +70,16 @@ local suicide_all = function(event)
   end
 end
 
-local unit_names
 local get_unit_names = function()
-  if unit_names then return unit_names end
+  local unit_names = storage.unit_control.unit_names
+  if next(unit_names) then return unit_names end
   unit_names = {}
   for name, prototype in pairs (prototypes.item["select-units"].get_entity_filters(defines.selection_mode.select)) do
     if prototype.type == "unit" then
       table.insert(unit_names, prototype.name)
     end
   end
+  storage.unit_control.unit_names = unit_names
   return unit_names
 end
 
@@ -89,13 +89,14 @@ local select_all_units_hotkey = function(event)
 
   Selection.clear_selected_units(player)
 
+  local script_data = storage.unit_control
   local names = get_unit_names()
-  if not next(unit_names) then return end
+  if not next(names) then return end
   local entities = player.surface.find_entities_filtered
   {
     position = event.cursor_position or {0,0},
     force = player.force,
-    name = unit_names,
+    name = names,
     radius = 200
   }
   
@@ -189,6 +190,7 @@ end
 local is_double_right_click = function(event)
   -- FIX: Use the dedicated R-click timer (Bug #4)
   -- This relies on the migration fix in on_load/on_configuration_changed
+  local script_data = storage.unit_control
   local last_selection_tick = script_data.last_Rclick_selection_tick[event.player_index]
   script_data.last_Rclick_selection_tick[event.player_index] = event.tick
 
@@ -297,6 +299,7 @@ end
 -- FIX: Run the post-load setup safely inside on_tick
 -- This logic was moved from on_load
 local function reset_gui()
+  local script_data = storage.unit_control
   for player_index, frame in pairs(script_data.open_frames) do
     if frame and frame.valid then
       script_data.marked_for_refresh[player_index] = true
@@ -311,6 +314,7 @@ end
 -- FIX: This wrapper function is the solution to the "wandering" bug.
 -- It correctly gets the unit_data from the event before processing the queue.
 local function on_ai_command_completed_wrapper(event)
+  local script_data = storage.unit_control
   local unit_data = script_data.units[event.unit_number]
   if unit_data then
     -- Now we call process_command_queue with the *correct* unit_data
@@ -344,6 +348,7 @@ end
 
 -- Cleans up a player's GUI and selected units when they leave
 local on_player_removed = function(event)
+  local script_data = storage.unit_control
   local frame = script_data.open_frames[event.player_index]
   if (frame and frame.valid) then
     util.deregister_gui(frame, script_data.button_actions)
@@ -362,6 +367,7 @@ end
 
 -- A cleanup function to remove invalid units
 local validate_some_stuff = function()
+  local script_data = storage.unit_control
   local units = script_data.units
   for unit_number, unit_data in pairs (units) do
     local entity = unit_data.entity
@@ -384,6 +390,7 @@ end
 
 local on_runtime_mod_setting_changed = function(event)
   if event.setting_type == "runtime-global" and event.setting == "erm-unit-control-selection-limit" then
+    local script_data = storage.unit_control
     script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
   end
 end
@@ -394,12 +401,14 @@ end
 
 remote.add_interface("erm_unit_control", {
   register_unit_unselectable = function(entity_name)
+    local script_data = storage.unit_control
     script_data.unit_unselectable[entity_name] = true
   end,
   get_events = function()
     return script_events
   end,
   set_debug = function(bool)
+    local script_data = storage.unit_control
     script_data.debug = bool
   end,
   set_map_settings = function()
@@ -489,10 +498,15 @@ unit_control.events =
 -- ===================================================================
 
 unit_control.on_init = function()
-  storage.unit_control = storage.unit_control or script_data
+  storage.unit_control = storage.unit_control or Core.script_data
   -- Ensure new tables exist for migration
   storage.unit_control.group_hunt_data = storage.unit_control.group_hunt_data or {}
   storage.unit_control.control_groups = storage.unit_control.control_groups or {}
+
+  storage.unit_control.radius_cache = {}
+  storage.unit_control.box_point_cache = {}
+  storage.unit_control.move_offset_positions = {}
+  storage.unit_control.unit_names = {}
   
   set_map_settings()
   reset_gui()
@@ -502,27 +516,22 @@ end
 unit_control.on_configuration_changed = function(configuration_changed_data)
   local loaded_data = storage.unit_control or {}
   -- `script_data` (from line 30) is the default. Merge defaults into loaded data.
-  local migrated_data = merge_defaults(loaded_data, script_data)
+  local migrated_data = merge_defaults(loaded_data,  Core.script_data)
+
+  migrated_data.radius_cache = {}
+  migrated_data.box_point_cache = {}
+  migrated_data.move_offset_positions = {}
+  migrated_data.unit_names = {}
   
-  -- Clear the *contents* of Core.script_data (which script_data points to)
-  -- This keeps the table reference intact for all other modules.
-  for k in pairs(script_data) do
-    script_data[k] = nil
-  end
-  
-  -- Copy the migrated data *into* the Core.script_data table
-  for k, v in pairs(migrated_data) do
-    script_data[k] = v
-  end
   
   -- Now script_data, Core.script_data, and storage.unit_control
   -- all point to the same, correct, migrated table.
-  storage.unit_control = script_data
 
   
   set_map_settings()
   reset_gui()
-  script_data.last_location = script_data.last_location or {}
+  migrated_data.last_location = migrated_data.last_location or {}
+  storage.unit_control = migrated_data
 end
 
 -- FIX: Replaced function to be save-game compliant

@@ -137,7 +137,7 @@ function Entity.on_entity_spawned(event)
   local unit = event.entity
   if not (unit and unit.valid) then return end 
     
-    local script_data = storage.unit_control 
+  local script_data = storage.unit_control 
   local source_data = script_data.units[unit.unit_number]
   if not source_data then return end
 

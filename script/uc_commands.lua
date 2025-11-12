@@ -131,6 +131,7 @@ function Commands.set_scout_command(unit_data, failure, delay)
   local find_non_colliding_position = surface.find_non_colliding_position
   local name = unit.name
   repeat
+    local index
     if not failure and #uncharted_chunks > 0 then
       index = random(#uncharted_chunks)
       chunk = uncharted_chunks[index]

@@ -38,12 +38,12 @@ function Movement.hold_position_group(player, queue)
 end
 
 -- Calculates positions for a unit formation (spiral pattern)
-local positions = {}
 local turn_rate = (math.pi * 2) / 1.618
 local size_scale = 1
 local get_move_offset = function(n, size)
+  local move_offset_positions = storage.unit_control.move_offset_positions
   local size = (size or 1) * size_scale
-  local position = positions[n]
+  local position = move_offset_positions[n]
   if position then
     -- FIX: Return a new table, not the cached one
     return {
@@ -52,9 +52,9 @@ local get_move_offset = function(n, size)
     }
   end
   position = {}
-  positions[n] = position
   position.x = math.sin(n * turn_rate)* (n ^ 0.5)
   position.y = math.cos(n * turn_rate) * (n ^ 0.5)
+  move_offset_positions[n] = position
   -- FIX: Return a new table
   return {
     x = position.x * size,
@@ -169,7 +169,7 @@ end
 function Movement.move_units_to_position(player, position, append)
   local group = Selection.get_selected_units(player.index)
   if not group then
-    unset_selected_unit(event.player_index)
+    unset_selected_unit(player.index)
     return
   end
   Movement.make_move_command

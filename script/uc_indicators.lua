@@ -89,10 +89,10 @@ function Indicators.remove_target_indicator(unit_data)
 end
 
 -- Caches collision box data for drawing selection circles
-local box_point_cache = {}
 local width = 0.2
 local get_collision_box_draw_points = function(entity)
-  local box = box_point_cache[entity.name]
+  local cache = storage.unit_control.box_point_cache
+  local box = cache[entity.name]
   if box then return box end
   local collision_box = entity.prototype.selection_box
   local box =
@@ -130,17 +130,17 @@ local get_collision_box_draw_points = function(entity)
       {collision_box.left_top.x, collision_box.right_bottom.y - width}
     },
   }
-  box_point_cache[entity.name] = box
+  cache[entity.name] = box
   return box
 end
 
 -- Caches selection radius data
-local radius_cache = {}
 local get_selection_radius = function(entity)
-  local radius = radius_cache[entity.name]
+  local cache = storage.unit_control.radius_cache
+  local radius = cache[entity.name]
   if radius then return radius end
   radius = (util.radius(entity.prototype.selection_box) * 2) + 0.5
-  radius_cache[entity.name] = radius
+  cache[entity.name] = radius
   return radius
 end
 
