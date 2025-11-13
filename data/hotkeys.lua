@@ -5,7 +5,7 @@ local become_an_hero =
 {
   type = "custom-input",
   name = hotkeys.suicide,
-  localised_name = {"custom-input-name", hotkeys.suicide}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.suicide}, -- FIX: Use {"section", "key"} format
   key_sequence = "DELETE",
   consuming = "game-only",
   order="aa",
@@ -15,7 +15,7 @@ local become_all_an_hero =
 {
   type = "custom-input",
   name = hotkeys.suicide_all,
-  localised_name = {"custom-input-name", hotkeys.suicide_all}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.suicide_all}, -- FIX: Use {"section", "key"} format
   key_sequence = "CONTROL + DELETE",
   consuming = "game-only",
   order="ab",
@@ -58,7 +58,7 @@ local stop =
 {
   type = "custom-input",
   name = hotkeys.stop,
-  localised_name = {"custom-input-name", hotkeys.stop}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.stop}, -- FIX: Use {"section", "key"} format
   key_sequence = "ALT + S",
   consuming = "game-only",
   order="bd",
@@ -68,7 +68,7 @@ local queue_stop =
 {
   type = "custom-input",
   name = hotkeys.queue_stop,
-  localised_name = {"custom-input-name", hotkeys.queue_stop}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.queue_stop}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + ALT + S",
   consuming = "game-only",
   order="be",
@@ -78,7 +78,7 @@ local hold_position =
 {
   type = "custom-input",
   name = hotkeys.hold_position,
-  localised_name = {"custom-input-name", hotkeys.hold_position}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.hold_position}, -- FIX: Use {"section", "key"} format
   key_sequence = "ALT + H",
   consuming = "game-only",
   order="bf",
@@ -88,7 +88,7 @@ local queue_hold_position =
 {
   type = "custom-input",
   name = hotkeys.queue_hold_position,
-  localised_name = {"custom-input-name", hotkeys.queue_hold_position}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.queue_hold_position}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + ALT + H",
   consuming = "game-only",
   order="bg",
@@ -111,7 +111,7 @@ local select_all_units =
 {
   type = "custom-input",
   name = hotkeys.select_all_units,
-  localised_name = {"custom-input-name", hotkeys.select_all_units}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.select_all_units}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + ALT + mouse-button-1",
   consuming = "game-only",
   order="bi",
@@ -121,7 +121,7 @@ local select_all_deployers =
 {
   type = "custom-input",
   name = hotkeys.select_all_deployers,
-  localised_name = {"custom-input-name", hotkeys.select_all_deployers}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", hotkeys.select_all_deployers}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + ALT + mouse-button-2",
   consuming = "game-only",
   consuming = "none",
@@ -132,7 +132,7 @@ local left_click =
 {
   type = "custom-input",
   name = "left-click",
-  localised_name = {"custom-input-name", "left-click"}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", "left-click"}, -- FIX: Use {"section", "key"} format
   key_sequence = "mouse-button-1",
   consuming = "none",
   order = "ca",
@@ -142,7 +142,7 @@ local right_click =
 {
   type = "custom-input",
   name = "right-click",
-  localised_name = {"custom-input-name", "right-click"}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", "right-click"}, -- FIX: Use {"section", "key"} format
   key_sequence = "mouse-button-2",
   consuming = "none",
   order = "cb",
@@ -152,7 +152,7 @@ local shift_left_click =
 {
   type = "custom-input",
   name = "shift-left-click",
-  localised_name = {"custom-input-name", "shift-left-click"}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", "shift-left-click"}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + mouse-button-1",
   consuming = "none",
   order = "cc",
@@ -162,7 +162,7 @@ local shift_right_click =
 {
   type = "custom-input",
   name = "shift-right-click",
-  localised_name = {"custom-input-name", "shift-right-click"}, -- FIX: Use {"section", "key"} format
+  localised_name = {"controls", "shift-right-click"}, -- FIX: Use {"section", "key"} format
   key_sequence = "SHIFT + mouse-button-2",
   consuming = "none",
   order = "cd",
@@ -201,23 +201,23 @@ local add_hotkey = function(name, key, order, localised_name_key)
     {
       type = "custom-input",
       name = names.hotkeys[name],
-      localised_name = {"custom-input-name", names.hotkeys[name]}, -- FIX: Use {"section", "key"} format
+      localised_name = {"controls", names.hotkeys[name]}, -- FIX: Use {"section", "key"} format
       key_sequence = key,
       order = order
     }
   }
 end
 
--- Generate hotkeys for groups 1-9 and 0 (as 10)
+-- Generate hotkeys for groups 1-9
 local key_map = {
   [1] = "1", [2] = "2", [3] = "3", [4] = "4", [5] = "5",
-  [6] = "6", [7] = "7", [8] = "8", [9] = "9", [0] = "0"
+  [6] = "6", [7] = "7", [8] = "8", [9] = "9"
 }
 
 -- Start order (f-a-...)
 local order_offset = 61
 
-for i = 0, 9 do
+for i = 1, 9 do
   local key = key_map[i]
   
   -- Select Group: Ctrl + [Number]

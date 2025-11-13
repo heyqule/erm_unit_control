@@ -479,7 +479,6 @@ unit_control.events =
   [hotkeys.set_control_group_7] = function(e) ControlGroups.set_control_group(e, 7) end,
   [hotkeys.set_control_group_8] = function(e) ControlGroups.set_control_group(e, 8) end,
   [hotkeys.set_control_group_9] = function(e) ControlGroups.set_control_group(e, 9) end,
-  [hotkeys.set_control_group_0] = function(e) ControlGroups.set_control_group(e, 10) end, -- 0 maps to 10
   
   [hotkeys.select_control_group_1] = function(e) ControlGroups.select_control_group_and_center_camera(e, 1) end,
   [hotkeys.select_control_group_2] = function(e) ControlGroups.select_control_group_and_center_camera(e, 2) end,
@@ -490,7 +489,6 @@ unit_control.events =
   [hotkeys.select_control_group_7] = function(e) ControlGroups.select_control_group_and_center_camera(e, 7) end,
   [hotkeys.select_control_group_8] = function(e) ControlGroups.select_control_group_and_center_camera(e, 8) end,
   [hotkeys.select_control_group_9] = function(e) ControlGroups.select_control_group_and_center_camera(e, 9) end,
-  [hotkeys.select_control_group_0] = function(e) ControlGroups.select_control_group_and_center_camera(e, 10) end, -- 0 maps to 10
 }
 
 -- ===================================================================

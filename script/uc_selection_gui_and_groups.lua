@@ -659,9 +659,9 @@ local button_map =
   move_button = {sprite = "utility/mod_dependency_arrow", tooltip = {"tooltip." .. tool_names.unit_move_tool}, style = "shortcut_bar_button_small_green"},
   patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
   attack_move_button = {sprite = "utility/center", tooltip = {"tooltip." .. tool_names.unit_attack_move_tool}},
-  hold_position_button = {sprite = "utility/downloading", tooltip = {"custom-input-name.hold-position"}},
-  stop_button = {sprite = "utility/close_black", tooltip = {"custom-input-name.stop"}, style = "shortcut_bar_button_small_red"},
-  scout_button = {sprite = "utility/map", tooltip = {"custom-input-name.scout"}},
+  hold_position_button = {sprite = "utility/downloading", tooltip = {"controls.hold-position"}},
+  stop_button = {sprite = "utility/close_black", tooltip = {"controls.stop"}, style = "shortcut_bar_button_small_red"},
+  scout_button = {sprite = "utility/map", tooltip = {"controls.scout"}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
   qrf_button = {sprite = "utility/downloading", tooltip = {"gui.qrf-mode"}, style = "shortcut_bar_button_small_blue"},
   perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
@@ -736,7 +736,7 @@ function Module.GUI.make_unit_gui(player)
       
       local signal_number = (group_number == 10) and 0 or group_number 
       local signal_sprite = "virtual-signal/signal-" .. signal_number
-      local signal_tooltip = {"custom-input-name.erm-unit-control-select_control_group_" .. signal_number}
+      local signal_tooltip = {"control.erm-unit-control-select_control_group_" .. signal_number}
 
       local button = cg_table.add{
         type = "sprite-button",

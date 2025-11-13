@@ -368,9 +368,8 @@ function Commands.process_attack_register(tick)
       if group_leader and group_leader.entity and group_leader.entity.valid then
         local target = group_leader.entity.surface.find_nearest_enemy({
           position = group_leader.entity.position,
-          max_distance = 5000,
+          max_distance = 960,
           force = group_leader.entity.force,
-          type = {"unit", "turret"}
         })
         if target then
           target_list = {target}
