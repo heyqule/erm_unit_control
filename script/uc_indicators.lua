@@ -9,6 +9,11 @@ local Indicators = {}
 local get_unit_number = Core.get_unit_number
 local empty_position = {0,0}
 
+local draw_line = rendering.draw_line
+local draw_sprite = rendering.draw_sprite
+local render_clear = rendering.clear
+
+
 -- Draws the red target box on an enemy
 function Indicators.add_target_indicator(unit_data)
   local player = unit_data.player
@@ -153,7 +158,7 @@ function Indicators.draw_temp_attack_indicator(entity, player)
   local players = {player}
   local surface = entity.surface
   local scale = (32/418) * get_selection_radius(entity)
-  rendering.draw_sprite
+  draw_sprite
   {
     sprite = "selection-circle",
     x_scale = scale,
@@ -206,15 +211,14 @@ function Indicators.update_selection_indicators(unit_data)
 
   local unit = unit_data.entity
   local box_points = get_collision_box_draw_points(unit)
-
-  local draw_line = rendering.draw_line
+  
   local color = {0, 1, 0}
   local width = 2
   local players = {player}
   local surface = unit.surface
   local scale = (32/418) * get_selection_radius(unit)
 
-  unit_data.rendered_selection_box[1] = rendering.draw_sprite
+  unit_data.rendered_selection_box[1] = draw_sprite
   {
     sprite = "selection-circle",
     x_scale = scale,
@@ -266,9 +270,7 @@ function Indicators.add_unit_indicators(unit_data)
 
   local surface = unit.surface
   local players = {unit_data.player}
-
-  -- FIX: Removed `local rendering = rendering` to fix global scope issue
-  local draw_line = rendering.draw_line
+  
   local gap_length = 1.25
   local dash_length = 0.25
 
@@ -351,7 +353,7 @@ end
 
 -- Clears and redraws all indicators for all units
 function Indicators.reset_rendering()
-  rendering.clear("erm_unit_control")
+  render_clear("erm_unit_control")
   local script_data = storage.unit_control
   for k, unit_data in pairs (script_data.units) do
     local unit = unit_data.entity
