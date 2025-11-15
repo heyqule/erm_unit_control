@@ -333,6 +333,60 @@ local bulk_attack_closest = function(entities, group)
   end
 end
 
+local wants_enemy_attack =
+{
+  [defines.distraction.by_enemy] = true,
+  [defines.distraction.by_anything] = true
+}
+
+local select_distraction_target = function(unit)
+  local command = unit.commandable.command
+  local distraction = (command and command.distraction) or defines.distraction.by_enemy
+
+  if not wants_enemy_attack[distraction] then
+    return
+  end
+
+  local params =
+  {
+    position = unit.position,
+    max_distance = unit.prototype.vision_distance,
+    force = unit.force
+  }
+
+  local surface = unit.surface
+  return surface.find_nearest_enemy(params) or (distraction == defines.distraction.by_anything and surface.find_nearest_enemy_entity_with_owner(params))
+
+end
+
+function Commands.process_distraction_completed(event)
+  local script_data = storage.unit_control
+  local unit_data = script_data.units[event.unit_number]
+  if not unit_data then return end
+  -- Do nothing if the unit is from a hunting group.
+  if unit_data.group then
+    local group_hunt_data = script_data.group_hunt_data[unit_data.group]
+    if group_hunt_data then
+      return
+    end
+  end
+  
+  local unit = unit_data.entity
+  if not (unit and unit.valid) then return end
+
+  local enemy = select_distraction_target(unit)
+
+  if not enemy then return end
+
+  unit.commandable.set_distraction_command
+  {
+    type = defines.command.attack,
+    target = enemy
+  }
+  
+  return true
+end
+
 -- Periodically processes the list of units waiting to attack
 function Commands.process_attack_register(tick)
   if tick % 31 ~= 0 then return end

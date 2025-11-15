@@ -105,6 +105,7 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
   
   -- Get or create the shared data for this group from global storage
   local script_data = storage.unit_control
+  --- @TODO, change it to a number/string key, instead of table key(memory_address key)
   if not script_data.group_hunt_data[group] then
     script_data.group_hunt_data[group] = {
       target = nil,

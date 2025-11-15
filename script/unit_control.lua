@@ -292,6 +292,11 @@ end
 -- ===================================================================
 
 local on_tick = function(event)
+  if event.was_distracted then
+    if Commands.process_distraction_completed(event) then
+      return
+    end
+  end
   Commands.process_attack_register(event.tick)
   GUI.check_refresh_gui()
 end
