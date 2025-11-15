@@ -292,11 +292,6 @@ end
 -- ===================================================================
 
 local on_tick = function(event)
-  if event.was_distracted then
-    if Commands.process_distraction_completed(event) then
-      return
-    end
-  end
   Commands.process_attack_register(event.tick)
   GUI.check_refresh_gui()
 end
@@ -319,6 +314,11 @@ end
 -- FIX: This wrapper function is the solution to the "wandering" bug.
 -- It correctly gets the unit_data from the event before processing the queue.
 local function on_ai_command_completed_wrapper(event)
+  if event.was_distracted then
+    if Commands.process_distraction_completed(event) then
+      return
+    end
+  end
   local script_data = storage.unit_control
   local unit_data = script_data.units[event.unit_number]
   if unit_data then
