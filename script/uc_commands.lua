@@ -484,9 +484,10 @@ function Commands.unit_follow(unit_data)
   end
 
   local speed = target.speed
-  local follow_range = 32
+  local accept_range = 24
+  local wait_time = math.random(120,240)
 
-  if speed and Core.distance(target.position, unit.position) > follow_range then
+  if speed and Core.distance(target.position, unit.position) > accept_range then
     Commands.set_command(unit_data,
             {
               type = defines.command.compound,
@@ -495,20 +496,17 @@ function Commands.unit_follow(unit_data)
                 {
                   type = defines.command.go_to_location,
                   destination_entity = target,
-                  radius = follow_range - (target.get_radius() + unit.get_radius() + 1)
+                  radius = accept_range
                 },
                 {
                   type = defines.command.wander,
-                  ticks_to_wait = math.random(120,240),
-                  radius = 16,
+                  ticks_to_wait = wait_time,
+                  radius = accept_range ,
                 }
               }
             })
 
     return
-  end
-  if speed then
-    speed = math.max(0.05, math.min(unit.prototype.speed, speed * 1.05))
   end
   local offset = Commands.get_move_offset(10 + unit.unit_number % 100, unit.get_radius())
   Commands.set_command(unit_data,
@@ -519,13 +517,12 @@ function Commands.unit_follow(unit_data)
               {
                 type = defines.command.go_to_location,
                 destination = {target.position.x + offset.x, target.position.y + offset.y},
-                radius = target.get_radius() + unit.get_radius() + 1,
-                speed = speed
+                radius = accept_range,
               },
               {
                 type = defines.command.wander,
-                ticks_to_wait = math.random(120,180),
-                radius = 16,
+                ticks_to_wait = wait_time,
+                radius = accept_range,
               }
             }
           })
