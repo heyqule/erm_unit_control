@@ -3,14 +3,17 @@ Version: 1.1.0
 Date: 2025-11-09
 
   Features:
+    - Added Control Groups functions. You can have up to 9 control grouops. Support hotkeys.
     - Added Hunting Mode (Aggressive Mode, continuously search and destroy enemy units)
     - Added QRF (Quick Reaction Force) Mode, stay in position and automatically engange enemy units within close range
     - Added Perimeter Mode, stay in position and automatically engange enemy units within long range (mostly to clear expansions)
-    - Added Control Groups function
+    - Added "Max selection size" map option to control how many you can select for each group. Default: 100 units
+    - Added "Max selection radius" map option to control how far you can select when you select same type of units / perform a large radius select. Default: 100 tiles
     
   Changes:
     - Added print_global to remote interface for printing storage object
     - Change remote interface name from __erm_unit_control__ to erm_unit_control. Same as the info.json name for consistency.    
+    - Disabled unit follow command as it causes performance issues on larger groups. It stays offline until there is a solution.
 
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.3

@@ -97,7 +97,7 @@ local select_all_units_hotkey = function(event)
     position = event.cursor_position or {0,0},
     force = player.force,
     name = names,
-    radius = 200
+    radius = script_data.max_selectable_radius
   }
   
   -- Apply selection limit
@@ -279,7 +279,9 @@ local shift_right_click = function(event)
   end
 
   if follow_entity then
-    Movement.make_follow_command(group, follow_entity, true)
+    --@TODO follow command fix, performance issue
+    --Movement.make_follow_command(group, follow_entity, true)
+    Movement.make_attack_command(group, attack_entities, true)
     player.play_sound({path = tool_names.unit_move_sound})
     return
   end
@@ -393,10 +395,17 @@ local set_map_settings = function()
   settings.max_failed_behavior_count = 5
 end
 
+local set_settings = function(event, setting_name)
+  local script_data = storage.unit_control
+  if event.setting == setting_name and settings.global[setting_name] then
+    script_data.max_selectable_units_limit = settings.global[setting_name].value
+  end  
+end
+
 local on_runtime_mod_setting_changed = function(event)
-  if event.setting_type == "runtime-global" and event.setting == "erm-unit-control-selection-limit" then
-    local script_data = storage.unit_control
-    script_data.max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value
+  if event.setting_type == "runtime-global" then
+    set_settings(event,"erm-unit-control-selection-radius")
+    set_settings(event,"erm-unit-control-selection-limit")
   end
 end
 

@@ -49,6 +49,7 @@ Core.script_data =
   group_hunt_data = {},
   control_groups = {},
   max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
+  max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
   --- Caches
   --- These need to be reset during on_init or on_config_changed because of mod / mod setting changes.
   radius_cache = {},

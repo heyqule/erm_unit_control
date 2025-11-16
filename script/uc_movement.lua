@@ -417,14 +417,16 @@ end
 
 -- Issues a follow command
 local follow_entity = function(event)
-  local group = Selection.get_selected_units(event.player_index)
-  if not group then return end
-
-  local target = event.entities[1]
-  if not target then return end
-  local append = event.name == defines.events.on_player_alt_selected_area
-  Movement.make_follow_command(group, target, append)
-  game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
+  return
+  --@TODO follow command fix, performance issue
+  --local group = Selection.get_selected_units(event.player_index)
+  --if not group then return end
+  --
+  --local target = event.entities[1]
+  --if not target then return end
+  --local append = event.name == defines.events.on_player_alt_selected_area
+  --Movement.make_follow_command(group, target, append)
+  --game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
 end
 
 -- Smart function that decides whether to attack or attack-move
