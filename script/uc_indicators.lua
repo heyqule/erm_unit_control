@@ -342,7 +342,7 @@ function Indicators.add_unit_indicators(unit_data)
         draw_on_ground = true
       }
       indicators[draw_obj.id] = draw_obj
-      position = command.destination
+      position = command.target.position
     end
 
     -- Draw lines for patrol routes
