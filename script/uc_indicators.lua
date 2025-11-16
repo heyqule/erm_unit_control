@@ -328,6 +328,23 @@ function Indicators.add_unit_indicators(unit_data)
       position = command.destination
     end
 
+    if command.command_type == Core.next_command_type.follow then
+      local draw_obj = draw_line
+      {
+        color = get_color(command.distraction),
+        width = 1,
+        to = position,
+        from = command.target.position,
+        surface = surface,
+        players = players,
+        gap_length = gap_length,
+        dash_length = dash_length,
+        draw_on_ground = true
+      }
+      indicators[draw_obj.id] = draw_obj
+      position = command.destination
+    end
+
     -- Draw lines for patrol routes
     if command.command_type == Core.next_command_type.patrol then
       for k = 1, #command.destinations do

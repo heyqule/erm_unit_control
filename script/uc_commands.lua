@@ -245,7 +245,8 @@ local type_handlers = {
     Commands.set_command(unit_data, hold_position_command)
   end,
   [next_command_type.follow] = function(data)
-    -- ignore, process somewhere else
+    local unit_data = data.unit_data
+    Commands.unit_follow(unit_data)
   end
 }
 
@@ -440,6 +441,94 @@ function Commands.process_attack_register(tick)
       end
     end
   end
+end
+
+-- Calculates positions for a unit formation (spiral pattern)
+local turn_rate = (math.pi * 2) / 1.618
+local size_scale = 1
+function Commands.get_move_offset(n, size)
+  local move_offset_positions = storage.unit_control.move_offset_positions
+  local size = (size or 1) * size_scale
+  local position = move_offset_positions[n]
+  if position then
+    -- FIX: Return a new table, not the cached one
+    return {
+      x = position.x * size,
+      y = position.y * size
+    }
+  end
+  position = {}
+  position.x = math.sin(n * turn_rate)* (n ^ 0.5)
+  position.y = math.cos(n * turn_rate) * (n ^ 0.5)
+  move_offset_positions[n] = position
+  -- FIX: Return a new table
+  return {
+    x = position.x * size,
+    y = position.y * size
+  }
+end
+
+-- Logic for the 'follow' command
+function Commands.unit_follow(unit_data)
+  local command = unit_data.command_queue[1]
+  if not command then return end
+  local target = command.target
+  if not (target and target.valid) then
+    return
+  end
+
+  local unit = unit_data.entity
+  if unit == target then
+    Commands.set_command(unit_data, {type = defines.command.stop})
+    return
+  end
+
+  local speed = target.speed
+  local follow_range = 32
+
+  if speed and Core.distance(target.position, unit.position) > follow_range then
+    Commands.set_command(unit_data,
+            {
+              type = defines.command.compound,
+              structure_type = defines.compound_command.logical_and,
+              commands = {
+                {
+                  type = defines.command.go_to_location,
+                  destination_entity = target,
+                  radius = follow_range - (target.get_radius() + unit.get_radius() + 1)
+                },
+                {
+                  type = defines.command.wander,
+                  ticks_to_wait = math.random(120,240),
+                  radius = 16,
+                }
+              }
+            })
+
+    return
+  end
+  if speed then
+    speed = math.max(0.05, math.min(unit.prototype.speed, speed * 1.05))
+  end
+  local offset = Commands.get_move_offset(10 + unit.unit_number % 100, unit.get_radius())
+  Commands.set_command(unit_data,
+          {
+            type = defines.command.compound,
+            structure_type = defines.compound_command.logical_and,
+            commands = {
+              {
+                type = defines.command.go_to_location,
+                destination = {target.position.x + offset.x, target.position.y + offset.y},
+                radius = target.get_radius() + unit.get_radius() + 1,
+                speed = speed
+              },
+              {
+                type = defines.command.wander,
+                ticks_to_wait = math.random(120,180),
+                radius = 16,
+              }
+            }
+          })
 end
 
 return Commands

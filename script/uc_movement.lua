@@ -37,31 +37,6 @@ function Movement.hold_position_group(player, queue)
   SharedMovement.hold_position_group(player, queue, group)
 end
 
--- Calculates positions for a unit formation (spiral pattern)
-local turn_rate = (math.pi * 2) / 1.618
-local size_scale = 1
-local get_move_offset = function(n, size)
-  local move_offset_positions = storage.unit_control.move_offset_positions
-  local size = (size or 1) * size_scale
-  local position = move_offset_positions[n]
-  if position then
-    -- FIX: Return a new table, not the cached one
-    return {
-      x = position.x * size,
-      y = position.y * size
-    }
-  end
-  position = {}
-  position.x = math.sin(n * turn_rate)* (n ^ 0.5)
-  position.y = math.cos(n * turn_rate) * (n ^ 0.5)
-  move_offset_positions[n] = position
-  -- FIX: Return a new table
-  return {
-    x = position.x * size,
-    y = position.y * size
-  }
-end
-
 local path_flags =
 {
   allow_destroy_friendly_entities = false,
@@ -112,7 +87,7 @@ function Movement.make_move_command(param)
   local size, speed = get_group_size_and_speed(group)
 
   for unit_number, entity in pairs (group) do
-    local offset = get_move_offset(i, size)
+    local offset = Commands.get_move_offset(i, size)
     i = i + 1
     local destination = {origin.x + offset.x, origin.y + offset.y}
     local is_unit = (entity.type == "unit")
@@ -247,7 +222,7 @@ function Movement.make_patrol_command(param)
   local size, speed = get_group_size_and_speed(group)
   local i = 0
   for unit_number, entity in pairs (group) do
-    local offset = get_move_offset(i, size)
+    local offset = Commands.get_move_offset(i, size)
     i = i + 1
     local destination = {origin.x + offset.x, origin.y + offset.y}
     local unit_data = units[unit_number]
@@ -305,45 +280,6 @@ function Movement.patrol_units(event)
   player.play_sound({path = tool_names.unit_move_sound})
 end
 
--- Logic for the 'follow' command
-local unit_follow = function(unit_data)
-  local command = unit_data.command_queue[1]
-  if not command then return end
-  local target = command.target
-  if not (target and target.valid) then
-    return
-  end
-
-  local unit = unit_data.entity
-  if unit == target then
-    Commands.set_command(unit_data, {type = defines.command.stop})
-    return
-  end
-
-  local speed = target.speed
-  local follow_range = 32
-
-  if speed and Core.distance(target.position, unit.position) > follow_range then
-    Commands.set_command(unit_data,
-    {
-      type = defines.command.go_to_location,
-      destination_entity = target,
-      radius = follow_range - (target.get_radius() + unit.get_radius() + 1)
-    })
-    return
-  end
-  if speed then
-    speed = math.max(0.05, math.min(unit.prototype.speed, speed * 1.05))
-  end
-  local offset = get_move_offset(10 + unit.unit_number % 100, unit.get_radius())
-  Commands.set_command(unit_data,
-  {
-    type = defines.command.go_to_location,
-    destination = {target.position.x + offset.x, target.position.y + offset.y},
-    radius = target.get_radius() + unit.get_radius() + 1,
-    speed = speed
-  })
-end
 
 -- Generates attack commands for a group
 function Movement.make_attack_command(group, entities, append)
@@ -392,12 +328,12 @@ function Movement.make_follow_command(group, target, append)
       if append then
         table.insert(unit_data.command_queue, next_command)
         if unit_data.idle and commandable then
-          unit_follow(unit_data)
+          Commands.unit_follow(unit_data)
         end
       else
         unit_data.command_queue = {next_command}
         if commandable then
-          unit_follow(unit_data)
+          Commands.unit_follow(unit_data)
         end
       end
       Commands.set_unit_not_idle(unit_data)
@@ -417,16 +353,16 @@ end
 
 -- Issues a follow command
 local follow_entity = function(event)
-  return
+  --return
   --@TODO follow command fix, performance issue
-  --local group = Selection.get_selected_units(event.player_index)
-  --if not group then return end
-  --
-  --local target = event.entities[1]
-  --if not target then return end
-  --local append = event.name == defines.events.on_player_alt_selected_area
-  --Movement.make_follow_command(group, target, append)
-  --game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
+  local group = Selection.get_selected_units(event.player_index)
+  if not group then return end
+
+  local target = event.entities[1]
+  if not target then return end
+  local append = event.name == defines.events.on_player_alt_selected_area
+  Movement.make_follow_command(group, target, append)
+  game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
 end
 
 -- Smart function that decides whether to attack or attack-move

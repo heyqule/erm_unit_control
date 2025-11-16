@@ -280,8 +280,7 @@ local shift_right_click = function(event)
 
   if follow_entity then
     --@TODO follow command fix, performance issue
-    --Movement.make_follow_command(group, follow_entity, true)
-    Movement.make_attack_command(group, attack_entities, true)
+    Movement.make_follow_command(group, follow_entity, true)
     player.play_sound({path = tool_names.unit_move_sound})
     return
   end
