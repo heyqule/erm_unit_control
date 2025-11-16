@@ -287,6 +287,11 @@ function Module.ControlGroups.select_control_group_and_center_camera(event, grou
       y = total_y / selected_size
     }
 
+    --- Don't move camera if distance is lower than 48 tile from player position
+    if util.distance(player.position, center_pos) < 48 then
+      return
+    end
+
     -- This block handles compatibility with Space Exploration/Space Age
     if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
       local surface = selected_entities[1].surface
@@ -736,7 +741,7 @@ function Module.GUI.make_unit_gui(player)
       
       local signal_number = (group_number == 10) and 0 or group_number 
       local signal_sprite = "virtual-signal/signal-" .. signal_number
-      local signal_tooltip = {"control.erm-unit-control-select_control_group_" .. signal_number}
+      local signal_tooltip = {"controls.erm-unit-control-select_control_group_" .. signal_number}
 
       local button = cg_table.add{
         type = "sprite-button",
