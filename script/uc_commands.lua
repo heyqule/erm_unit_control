@@ -447,6 +447,7 @@ end
 local turn_rate = (math.pi * 2) / 1.618
 local size_scale = 1
 function Commands.get_move_offset(n, size)
+  n = n % 90
   local move_offset_positions = storage.unit_control.move_offset_positions
   local size = (size or 1) * size_scale
   local position = move_offset_positions[n]
@@ -482,12 +483,11 @@ function Commands.unit_follow(unit_data)
     Commands.set_command(unit_data, {type = defines.command.stop})
     return
   end
-
-  local speed = target.speed
+  
   local accept_range = 24
-  local wait_time = math.random(120,240)
+  local wait_time = math.random(180,300) -- wait 3 - 5s
 
-  if speed and Core.distance(target.position, unit.position) > accept_range then
+  if Core.distance(target.position, unit.position) > accept_range then
     Commands.set_command(unit_data,
             {
               type = defines.command.compound,
@@ -508,7 +508,7 @@ function Commands.unit_follow(unit_data)
 
     return
   end
-  local offset = Commands.get_move_offset(10 + unit.unit_number % 100, unit.get_radius())
+  local offset = Commands.get_move_offset(unit.unit_number, unit.get_radius())
   Commands.set_command(unit_data,
           {
             type = defines.command.compound,
