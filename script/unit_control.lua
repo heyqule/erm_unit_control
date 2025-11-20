@@ -133,13 +133,21 @@ local block_by_opened_gui = {
 
 -- Checks if the player is in a state that allows our left-click override
 local can_left_click = function(player, shift)
-  -- FIX: Immediately block if the player has any GUI open.
-  -- This prevents the tool from spawning when clicking inventory, logistic slots, chests, etc.
+  -- FIX: MOVED CURSOR CHECKS TO TOP & ADDED 'cursor_record'
+  -- 1. Check for physical items (Stack)
+  if player.cursor_stack.valid_for_read then return end
+  -- 2. Check for Ghost items (Pipette)
+  if player.cursor_ghost then return end
+  -- 3. Check for Blueprint Library Records (THIS was missing!)
+  if player.cursor_record then return end
+
+  -- FIX: Check for Open GUIs (Logistic fix)
   if player.opened then
     -- Exception: Allow clicking if interacting with OUR mod's GUI frame
     if player.opened.object_name == "LuaGuiElement" and player.opened.name == "erm_unit_control_main_frame" then
       return true
     else
+      -- If any other GUI (Inventory, Blueprint Book, Chest) is open, block the tool.
       return false 
     end
   end
@@ -152,8 +160,9 @@ local can_left_click = function(player, shift)
   if block_by_opened_gui[player.opened_gui_type] then return end
   
   if not shift and player.render_mode == defines.render_mode.chart then return end
-  if player.cursor_stack.valid_for_read then return end
-  if player.cursor_ghost then return end
+  
+  -- (Cursor checks removed from here as they are now at the top)
+  
   local selected = player.selected
   if selected then
     if selected.type == "resource" then return end
