@@ -58,7 +58,7 @@ Core.script_data =
 
   --- Data for hunt mode
   group_hunt_data = {},
-  reactive_defense_mode_enabled = settings.global["erm-unit-control-reactive-defense-mode"].value,
+  hunting_mode_enabled = settings.global["erm-unit-control-hunting-mode"].value,
   
   --- Data for reactive defense
   reactive_defense_mode_enabled = settings.global["erm-unit-control-reactive-defense-mode"].value,
