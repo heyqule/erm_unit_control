@@ -133,12 +133,12 @@ local block_by_opened_gui = {
 
 -- Checks if the player is in a state that allows our left-click override
 local can_left_click = function(player, shift)
-  -- FIX: MOVED CURSOR CHECKS TO TOP & ADDED 'cursor_record'
+  -- FIX: MOVED CURSOR CHECKS TO TOP
   -- 1. Check for physical items (Stack)
   if player.cursor_stack.valid_for_read then return end
   -- 2. Check for Ghost items (Pipette)
   if player.cursor_ghost then return end
-  -- 3. Check for Blueprint Library Records (THIS was missing!)
+  -- 3. Check for Blueprint Library Records (Book fix)
   if player.cursor_record then return end
 
   -- FIX: Check for Open GUIs (Logistic fix)
@@ -161,15 +161,21 @@ local can_left_click = function(player, shift)
   
   if not shift and player.render_mode == defines.render_mode.chart then return end
   
-  -- (Cursor checks removed from here as they are now at the top)
-  
+  -- FIX: Restore Vanilla Copy/Paste behavior
   local selected = player.selected
   if selected then
-    if selected.type == "resource" then return end
-    if not (selected.type == "unit" or selected.type == "unit-spawner") then
-      if not shift then return end
+    -- If we are hovering over a Unit or Spawner, allow the tool (for selection)
+    if selected.type == "unit" or selected.type == "unit-spawner" then
+       return true
     end
+    
+    -- If we are hovering over ANYTHING else (Machine, Inserter, Resource),
+    -- We STRICTLY return false. This blocks the tool and lets vanilla handle it.
+    -- This restores Shift+Drag (Copy Paste) and Click (Open GUI).
+    return false
   end
+  
+  -- If hovering over nothing (Ground), allow tool (Box Selection).
   return true
 end
 
