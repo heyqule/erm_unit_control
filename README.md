@@ -4,7 +4,7 @@
 - Manage up to 9 control groups with hotkeys.
 - Max group selection size, 100 default, up to 500. (configurable in map settings)
 - Hunting Strategy - command a group to perform search and destroy operation
-- Reactive Defensive Strategy - When an player entity killed, nearby units will come to aid, then return to original location once the operation is completed.
+- Reactive Defensive Strategy - When a player entity killed, the nearby units will come to aid, then return to original location once the operation is completed.
 - Perimeter Defending Strategy - When radar scan an chunk with enemy buildings, The nearby units will go attack that enemy base, then return to radar.
 
 ### How to use:
@@ -17,3 +17,5 @@
 - **Scout:** select unit, click scout button and they will move in all directions
 
 
+Additional Asset Credit:
+https://www.flaticon.com/free-icon/shield_861377  Shield Icon

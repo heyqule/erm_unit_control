@@ -215,6 +215,14 @@ local selection_circle =
   draw_as_glow = true
 }
 
+local reactive_defense_icon =
+{
+  type = "sprite",
+  name = "reactive-defense-icon",
+  filename = path.."shield.png",
+  size = 128,
+}
+
 data:extend{
   unit_selection_tool,
   move_confirm_sound,
@@ -225,5 +233,6 @@ data:extend{
   attack_move_cursor,
   unit_attack_move_tool,
   selection_circle,
+  reactive_defense_icon
   --select_units_shortcut
 }

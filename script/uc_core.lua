@@ -46,7 +46,6 @@ Core.script_data =
   target_indicators = {},
   attack_register = {},
   last_location = {},
-  group_hunt_data = {},
   control_groups = {},
   max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
   max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
@@ -55,7 +54,21 @@ Core.script_data =
   radius_cache = {},
   box_point_cache = {},
   move_offset_positions = {},
-  unit_names = {}
+  unit_names = {},
+
+  --- Data for hunt mode
+  group_hunt_data = {},
+  reactive_defense_mode_enabled = settings.global["erm-unit-control-reactive-defense-mode"].value,
+  
+  --- Data for reactive defense
+  reactive_defense_mode_enabled = settings.global["erm-unit-control-reactive-defense-mode"].value,
+  reactive_defense_unit_search_range = settings.global["erm-unit-control-reactive-defense-unit-search-range"].value,
+  next_reactive_defense_garbage_collect_tick = 0,
+  reactive_defense_groups = {},
+  reactive_defense_cooldown = {},
+  
+  --- Data for perimeter
+  perimeter_mode_enabled = settings.global["erm-unit-control-perimeter-mode"].value,
 }
 
 -- A simple 'enum' to define our custom command types
@@ -69,7 +82,6 @@ Core.next_command_type =
   follow = 6,
   hold_position = 7,
   hunt = 8,
-  qrf = 9,
   perimeter = 10
 }
 

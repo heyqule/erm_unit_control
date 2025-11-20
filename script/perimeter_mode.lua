@@ -1,10 +1,25 @@
 local util = require("script/script_util") -- <-- ADD THIS LINE
 local PerimeterMode = {}
 
+--[[
+Brainstorm.
+
+- When a valid radar calls the on_sector_scanned event. A valid radar is any radar with max_distance_of_sector_revealed > 10.
+- Check whether enemy is found in the scanned chunk
+- If an enemy entity is found within the scanned chunk, check whether there are units near the radar (within max_selectable_radius tiles).
+- If there are units, select them (up to max group limit) and form a group.
+- Once group is formed, give them a chain command 
+  1. go to / attack target location, distract by enemy,
+  2. wander 5 seconds, distract by enemy 
+  3. go to radar location, distract by enemy,
+- After the radar issue the command, it attach a sweeper icon sprite and distance line to a unit in map mode. (refer to reactive defense)
+- Attach draw icon and line object to radar. When the radar has renderObjectIds, it can no longer call unit to attack new chunk until the current group is done. (to preserve performance and avoid conflicts)
+- Refer to reactive defense on unit group handling for return home command after failure and data clean up.
+
+]]--
+
 -- How far the unit will scan for enemies from its original post
-local PERIMETER_RANGE = 150
--- How long to wait (in ticks) before scanning again if no enemies are found
-local SCAN_INTERVAL = 60
+local PERIMETER_RANGE = 160
 
 -- This is the main 'update' function for perimeter mode.
 -- It scans for enemies. If found, it attacks.

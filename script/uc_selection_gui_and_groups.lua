@@ -481,25 +481,6 @@ local gui_actions =
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
 
-  -- Button to activate 'QRF' (Quick Reaction Force) mode
-  qrf_button = function(event)
-    local group = Module.Selection.get_selected_units(event.player_index)
-    if not group then return end
-    
-    local qrf_queue = {command_type = next_command_type.qrf}
-    local script_data = storage.unit_control
-    local units = script_data.units
-    for unit_number, unit in pairs(group) do
-      local unit_data = units[unit_number]
-      unit_data.mode = "qrf"
-      unit_data.original_position = unit.position -- Store current pos
-      unit_data.command_queue = {qrf_queue}
-      Commands.set_unit_not_idle(unit_data)
-      Commands.process_command_queue(unit_data) -- Start the command immediately
-    end
-    game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
-  end,
-
   -- Button to activate 'Perimeter' mode
   perimeter_button = function(event)
     local group = Module.Selection.get_selected_units(event.player_index)
@@ -668,7 +649,6 @@ local button_map =
   stop_button = {sprite = "utility/close_black", tooltip = {"controls.stop"}, style = "shortcut_bar_button_small_red"},
   scout_button = {sprite = "utility/map", tooltip = {"controls.scout"}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
-  qrf_button = {sprite = "utility/downloading", tooltip = {"gui.qrf-mode"}, style = "shortcut_bar_button_small_blue"},
   perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
 }
 
@@ -777,11 +757,20 @@ function Module.GUI.make_unit_gui(player)
   -- Draw the command buttons (Move, Patrol, Hunt, etc.)
   subfooter.add{type = "empty-widget"}.style.horizontally_stretchable = true
   local butts = subfooter.add{type = "table", column_count = 10}
+  
+  
   for action, param in pairs (button_map) do
-    local button = butts.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
-    button.style.height = 24 * player.display_scale
-    button.style.width = 24 * player.display_scale
-    util.register_gui(script_data.button_actions, button, {type = action})
+    local pass = true
+    if not script_data.hunting_mode_enabled and action == 'hunt_button' then
+      pass = false
+    end
+
+    if pass then
+      local button = butts.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
+      button.style.height = 24 * player.display_scale
+      button.style.width = 24 * player.display_scale
+      util.register_gui(script_data.button_actions, button, {type = action})
+    end
   end
 end
 

@@ -10,7 +10,7 @@ local Commands = require("script/uc_commands")
 local Entity = require("script/uc_entity")
 local Indicators = require("script/uc_indicators")
 local Movement = require("script/uc_movement")
-
+local ReactiveDefense = require("script/reactive_defense")
 -- Load the new MERGED module
 local SelectionAndGUI = require("script/uc_selection_gui_and_groups")
 local Selection = SelectionAndGUI.Selection
@@ -321,6 +321,10 @@ local function on_ai_command_completed_wrapper(event)
     end
   end
   local script_data = storage.unit_control
+  if script_data.reactive_defense_groups[event.unit_number] then
+    return ReactiveDefense.update_ai_completed(event)
+  end
+  
   local unit_data = script_data.units[event.unit_number]
   if unit_data then
     -- Now we call process_command_queue with the *correct* unit_data
@@ -394,19 +398,27 @@ local set_map_settings = function()
   settings.max_failed_behavior_count = 5
 end
 
-local set_settings = function(event, setting_name)
-  local script_data = storage.unit_control
-  if event.setting == setting_name and settings.global[setting_name] then
-    script_data.max_selectable_units_limit = settings.global[setting_name].value
-  end  
-end
+local setting_map = {
+  ["erm-unit-control-selection-limit"] = "max_selectable_units_limit",
+  ["erm-unit-control-selection-radius"] = "max_selectable_radius",
+  ["erm-unit-control-hunting-mode"] = "hunting_mode_enabled",
+  ["erm-unit-control-reactive-defense-mode"] = "reactive_defense_mode_enabled",
+  ["erm-unit-control-reactive-defense-unit-search-range"] = "reactive_defender_unit_search_range",
+  ["erm-unit-control-perimeter-mode"] = "perimeter_mode_enabled",
+}
 
 local on_runtime_mod_setting_changed = function(event)
   if event.setting_type == "runtime-global" then
-    set_settings(event,"erm-unit-control-selection-radius")
-    set_settings(event,"erm-unit-control-selection-limit")
-  end
+    local setting_name = event.setting
+    if settings.global[setting_name] and setting_map[setting_name] then
+      storage.unit_control[ setting_map[setting_name] ] = settings.global[setting_name].value
+    end
 end
+end
+
+local on_object_destroyed = function(event)
+  ReactiveDefense.update_group_destroy(event)
+end 
 
 -- ===================================================================
 -- ## REMOTE INTERFACE ##
@@ -448,7 +460,7 @@ unit_control.events =
   [defines.events.on_gui_click] = GUI.on_gui_click,
   [defines.events.on_gui_closed] = GUI.on_gui_closed,
 
-  [defines.events.on_entity_died] = Entity.on_entity_removed,
+  [defines.events.on_entity_died] = Entity.on_entity_died,
   [defines.events.on_robot_mined_entity] = Entity.on_entity_removed,
   [defines.events.on_player_mined_entity] = Entity.on_entity_removed,
   [defines.events.script_raised_destroy] = Entity.on_entity_removed,
@@ -456,6 +468,7 @@ unit_control.events =
   -- [defines.events.on_entity_damaged] = Entity.on_entity_damaged, -- Disabled for performance
   
   -- FIX: Point this event to our new wrapper function
+  [defines.events.on_object_destroyed] = on_object_destroyed,
   [defines.events.on_ai_command_completed] = on_ai_command_completed_wrapper,
   [defines.events.on_runtime_mod_setting_changed] = on_runtime_mod_setting_changed,
   

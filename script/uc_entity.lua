@@ -6,11 +6,10 @@ local Core = require("script/uc_core")
 local Selection = require("script/uc_selection_gui_and_groups").Selection 
 local Commands = require("script/uc_commands")
 local HuntingMode = require("hunting_mode")
+local ReactiveDefense = require("reactive_defense")
 local util = require("script/script_util")
 
 local Entity = {}
-
-
 
 -- Cleans up a unit from the mod's data when it's removed
 function Entity.deregister_unit(entity)
@@ -74,6 +73,11 @@ function Entity.on_entity_removed(event)
   end
   
   Entity.deregister_unit(event.entity)
+end
+
+function Entity.on_entity_died(event)
+  ReactiveDefense.search_enemy(event.entity)
+  Entity.on_entity_removed(event)
 end
 
 -- Event handler for when a unit is damaged
