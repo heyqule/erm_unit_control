@@ -133,24 +133,34 @@ local block_by_opened_gui = {
 
 -- Checks if the player is in a state that allows our left-click override
 local can_left_click = function(player, shift)
-  if block_by_opened_gui[player.opened_gui_type] then return end
-  if not shift and player.render_mode == defines.render_mode.chart then return end
-  if player.cursor_ghost then return end
-  if player.selected and not allow_selection[player.selected.type] then return end
-  if not player.is_cursor_empty() then return end
-  
-  -- FIX: Check if *any* GUI is open. If so, check if it's ours.
+  -- FIX: Immediately block if the player has any GUI open.
+  -- This prevents the tool from spawning when clicking inventory, logistic slots, chests, etc.
   if player.opened then
-    if player.opened.name == "erm_unit_control_main_frame" then
-      -- Our GUI is open. Allow clicks.
+    -- Exception: Allow clicking if interacting with OUR mod's GUI frame
+    if player.opened.object_name == "LuaGuiElement" and player.opened.name == "erm_unit_control_main_frame" then
       return true
     else
-      -- Another mod's GUI (or a game GUI) is open. Block.
-      return false
+      return false 
     end
   end
+
+  -- FIX: Specific check for the Controller GUI (Character/Inventory/Logistics screen)
+  if player.opened_gui_type == defines.gui_type.controller then
+    return false
+  end
+
+  if block_by_opened_gui[player.opened_gui_type] then return end
   
-  -- No GUI is open. Allow clicks.
+  if not shift and player.render_mode == defines.render_mode.chart then return end
+  if player.cursor_stack.valid_for_read then return end
+  if player.cursor_ghost then return end
+  local selected = player.selected
+  if selected then
+    if selected.type == "resource" then return end
+    if not (selected.type == "unit" or selected.type == "unit-spawner") then
+      if not shift then return end
+    end
+  end
   return true
 end
 
