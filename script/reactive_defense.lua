@@ -1,5 +1,4 @@
 local util = require("script/script_util")
-local Position = require("__erm_libs__/stdlib/position")
 local ReactiveDefense = {}
 
 --[[
