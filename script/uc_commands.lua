@@ -480,7 +480,7 @@ function Commands.unit_follow(unit_data)
   end
   
   local accept_range = 24
-  local wait_time = math.random(180,300) -- wait 3 - 5s
+  local wait_time = math.random(60,120) -- wait 1-2s
 
   if Core.distance(target.position, unit.position) > accept_range then
     Commands.set_command(unit_data,
@@ -494,9 +494,9 @@ function Commands.unit_follow(unit_data)
                   radius = accept_range
                 },
                 {
-                  type = defines.command.wander,
+                  type = defines.command.stop,
                   ticks_to_wait = wait_time,
-                  radius = accept_range ,
+                  --radius = accept_range ,
                 }
               }
             })

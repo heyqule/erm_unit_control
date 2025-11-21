@@ -8,13 +8,18 @@
 - Perimeter Defending Strategy - When radar scan an chunk with enemy buildings, The nearby units will go attack that enemy base, then return to radar.
 
 ### How to use:
-- **Select all unit in 200 radius:** Shift+Alt+left click
-- **Select all unit of same type in 200 radius:** Double click on unit in normal view.  (Not working in map view)
+- **Select all unit in X radius:** Shift+Alt+left click
+- **Select all unit of same type in X radius:** Double click on unit in normal view. 
 - **Attack Move:**  Select unit > right click on destination. (orange dotted line indicator)
 - **Go to destination(non-attack move):**  Select unit > double right click on destination. (green dotted line indicator)
 - **Multiple Waypoints attack move:** Select unit > hold shift and right click on destinations.
 - **Patrol:** Select units > click add patrol waypoint button > right click destination. (shift and right click for multiple destinations).
 - **Scout:** select unit, click scout button and they will move in all directions
+- **Follow Target** select unit, click follow target button, click on any friendly entity with health and they will follow.  Alt: Shift + right-click on the follow target.
+- **Hunting Mode** select unit, click hunting mode button, they will search nearby enemy entity to kill.
+- **Reactive Defense** Move units to an active warzone. When an entity dies nearby, they'll march to that location, then return to original location after mission completed.
+- **Perimeter Defense** WIP.
+
 
 
 Additional Asset Credit:
