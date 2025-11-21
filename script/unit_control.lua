@@ -430,6 +430,7 @@ local setting_map = {
   ["erm-unit-control-reactive-defense-mode"] = "reactive_defense_mode_enabled",
   ["erm-unit-control-reactive-defense-unit-search-range"] = "reactive_defender_unit_search_range",
   ["erm-unit-control-perimeter-mode"] = "perimeter_mode_enabled",
+  ["erm-unit-control-reactive-defense-cooldown"] = "reactive_defender_cooldown",
 }
 
 local on_runtime_mod_setting_changed = function(event)
@@ -438,7 +439,7 @@ local on_runtime_mod_setting_changed = function(event)
     if settings.global[setting_name] and setting_map[setting_name] then
       storage.unit_control[ setting_map[setting_name] ] = settings.global[setting_name].value
     end
-end
+  end
 end
 
 local on_object_destroyed = function(event)

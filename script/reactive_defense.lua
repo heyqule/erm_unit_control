@@ -1,5 +1,5 @@
 local util = require("script/script_util")
-local Core = require("script/uc_core")
+local Position = require("__erm_libs__/stdlib/position")
 local ReactiveDefense = {}
 
 --[[
@@ -10,7 +10,6 @@ New event based workflow
 - If units are found, select them (up to max group limit) and form an attack group with LuaCommandable.
 - Once group is formed, give them a chain command 
   1. go to target location, distract by enemy,
-  2. wander for 5 seconds,  distract by enemy,
   3. go to radar location, distract by enemy,
 - After assigning the command,  attach a sprite to the group in map mode. Then assign the renderObjectId and the group LuaCommandable object to the position of dead entity.
 - When an entity die within 96 tiles of that location, it can no
@@ -19,6 +18,37 @@ New event based workflow
 
  
 ]]--
+
+--[[
+Defines mapping reference
+
+defines.behavior_result = {
+  deleted = 3,
+  fail = 1,
+  in_progress = 0,
+  success = 2
+}
+
+defines.moving_state = {
+  adaptive = 2,
+  moving = 1,
+  stale = 0,
+  stuck = 3
+}
+
+defines.command = {
+  attack = 1,
+  attack_area = 5,
+  build_base = 7,
+  compound = 3,
+  flee = 8,
+  go_to_location = 2,
+  group = 4,
+  stop = 9,
+  wander = 6
+}
+
+]]
 
 local acceptable_entity_types = util.list_to_map({
   "artillery-turret",
@@ -56,10 +86,20 @@ local acceptable_entity_types = util.list_to_map({
   "legacy-straight-rail",
   "locomotive",
   "cargo-wagon",
-  "fluid-wagon"
+  "fluid-wagon",
+  "container"
 })
 
-local COOLDOWN = 5 * second
+local go_home_radius = 2
+--- assuming target_unit passed valid check
+local has_active_commands = function(target_unit)
+  return 
+    target_unit.commandable and
+    (
+      target_unit.commandable.parent_group or
+      (target_unit.commandable.has_command and target_unit.commandable.command.type ~= defines.command.wander)
+    )
+end
 
 function ReactiveDefense.search_enemy(entity)
   if not storage.unit_control.reactive_defense_mode_enabled then
@@ -71,13 +111,13 @@ function ReactiveDefense.search_enemy(entity)
     entity.force.ai_controllable == false
   then
     local force = entity.force
-    --- 5s cooldown for applicable each force.
-    if game.tick < (storage.unit_control.reactive_defense_cooldown[force.index] or 0) then
+    local unit_control_data = storage.unit_control
+    if game.tick < (unit_control_data.reactive_defense_cooldown[force.index] or 0) then
       return
     end
     
-    storage.unit_control.reactive_defense_cooldown[force.index] = game.tick + COOLDOWN
-    local unit_search_range = storage.unit_control.reactive_defense_unit_search_range
+    storage.unit_control.reactive_defense_cooldown[force.index] = game.tick + unit_control_data.reactive_defender_cooldown * second
+    local unit_search_range = unit_control_data.reactive_defense_unit_search_range
     local surface = entity.surface
     local position = entity.position
     local enemy = surface.find_nearest_enemy({
@@ -97,28 +137,25 @@ function ReactiveDefense.search_enemy(entity)
       type = "unit"
     })
     local target_unit = target_unit_result[1]
-    if not target_unit or
-       (target_unit.commandable and
-       target_unit.commandable.parent_group)
-    then 
+    if not target_unit or has_active_commands(target_unit) then 
       return 
     end
     
     local target_unit_position = target_unit.position
-    local local_unit_search_range = storage.unit_control.max_selectable_radius
+    local local_unit_search_range = unit_control_data.max_selectable_radius
     local defense_units = surface.find_entities_filtered({
       area = {
         left_top = {x = target_unit_position.x - local_unit_search_range, y = target_unit_position.y - local_unit_search_range},
         right_bottom = {x = target_unit_position.x + local_unit_search_range, y = target_unit_position.y + local_unit_search_range}
       },
       force = force,
-      limit = 100, -- up to maximum selectable.
+      limit = unit_control_data.max_selectable_units_limit,
       type = "unit"
     })
     
     if not next(defense_units) then return end
 
-    local group_data = storage.unit_control.reactive_defense_groups
+    local group_data = unit_control_data.reactive_defense_groups
     local group = surface.create_unit_group({
       force = force,
       position = target_unit_position
@@ -134,21 +171,14 @@ function ReactiveDefense.search_enemy(entity)
         {
           type = defines.command.attack_area,
           destination = { x = position.x, y = position.y },
-          radius = 16,
-          distraction = defines.distraction.by_enemy
-        },
-        {
-          type = defines.command.wander,
-          destination = { x = position.x, y = position.y },
-          radius = 32,
-          ticks_to_wait = 5 * second,
+          radius = 8,
           distraction = defines.distraction.by_enemy
         },
         {
           type = defines.command.go_to_location,
           distraction = defines.distraction.by_enemy,
-          radius = 5,
-          destination = {x = target_unit_position.x, y = target_unit_position.y}
+          destination = {x = target_unit_position.x, y = target_unit_position.y},
+          radius = go_home_radius,
         },
       }
     }
@@ -191,17 +221,7 @@ function ReactiveDefense.search_enemy(entity)
   end
 end
 
--- This is the main 'update' function for QRF (Quick Reaction Force) mode.
--- It scans for enemies. If found, it attacks.
--- If not, it returns to its post and waits.
---[[
-defines.behavior_result = {
-  deleted = 3,
-  fail = 1,
-  in_progress = 0,
-  success = 2
-}
-]]
+
 local command_completed = {
   [defines.behavior_result.deleted] = true,
   [defines.behavior_result.fail] = true,
@@ -212,28 +232,25 @@ function ReactiveDefense.update_ai_completed(event)
   if not storage.unit_control.reactive_defense_mode_enabled then
     return
   end
-  
-  local script_data = storage.unit_control.reactive_defense_groups[event.unit_number]
-  if script_data and command_completed[event.result] then
 
+
+  local script_data = storage.unit_control.reactive_defense_groups[event.unit_number]
+  if command_completed[event.result] and script_data then
     ---When the group fails, retry return command for each unit, since old group is gone.
-    if event.result == defines.behavior_result.fail then
+    if event.result == defines.behavior_result.fail or event.result == defines.behavior_result.deleted then
       --- return to start location
       for _, unit in pairs(script_data.defense_units) do
         if unit and unit.valid then
-          --- Ask them to return individually. if this fails too, then so be it, they deserted and can die in the wild lol.
           unit.commandable.set_command({
             type = defines.command.go_to_location,
             distraction = defines.distraction.by_enemy,
-            radius = 5,
-            destination = script_data.start_position
-          }) 
+            destination = script_data.start_position,
+            radius = go_home_radius,
+          })
         end
-        ReactiveDefense.clean_group(event.unit_number)
       end
-    else
-      ReactiveDefense.clean_group(event.unit_number)
     end
+    ReactiveDefense.clean_group(event.unit_number)
   end
 end
 

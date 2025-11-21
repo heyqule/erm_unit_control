@@ -254,6 +254,7 @@ function Module.ControlGroups.select_control_group(event, group_number)
   Module.Selection.clear_selected_units(player)
 
   if table_size(entities_to_select) > 0 then
+    script_data.selected_control_groups[player_index] = group_number
     Module.Selection.process_unit_selection(entities_to_select, player)
     return entities_to_select
   else
@@ -730,6 +731,10 @@ function Module.GUI.make_unit_gui(player)
         tooltip = signal_tooltip,
         style = "slot_button"
       }
+      if script_data.selected_control_groups[player.index] == group_number then
+        button["style"] = "yellow_slot_button"
+        script_data.selected_control_groups[player.index] = nil
+      end
       util.register_gui(script_data.button_actions, button, {type = "control_group_button", group_number = group_number})
     end
   end

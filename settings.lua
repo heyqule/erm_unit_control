@@ -35,8 +35,16 @@ data:extend({
     name = "erm-unit-control-reactive-defense-unit-search-range",
     setting_type = "runtime-global",
     default_value = 160,
-    allowed_values = {96, 160, 224, 320, 480},
+    allowed_values = {96, 160, 224, 320, 480, 640},
     order = "a-erm-d1"
+  },
+  {
+    type = "int-setting",
+    name = "erm-unit-control-reactive-defense-cooldown",
+    setting_type = "runtime-global",
+    default_value = 5,
+    allowed_values = {1, 2, 3, 5},
+    order = "a-erm-d2"
   },
   {
     type = "bool-setting",

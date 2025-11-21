@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.1
+Version: 1.1.2
 Date: 2025-11-09
 
   Features:
@@ -16,6 +16,8 @@ Date: 2025-11-09
 
   Bugfixes: 
     - Fixed follow command performance issue when target unit stopped moving.
+    - Fixed select unit may sometime prevent world interaction.
+    - Fixed select unit item appears in logicstic request window.
 
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.3

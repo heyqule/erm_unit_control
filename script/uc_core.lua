@@ -47,6 +47,7 @@ Core.script_data =
   attack_register = {},
   last_location = {},
   control_groups = {},
+  selected_control_groups = {},
   max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
   max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
   --- Caches
@@ -63,9 +64,11 @@ Core.script_data =
   --- Data for reactive defense
   reactive_defense_mode_enabled = settings.global["erm-unit-control-reactive-defense-mode"].value,
   reactive_defense_unit_search_range = settings.global["erm-unit-control-reactive-defense-unit-search-range"].value,
+  reactive_defender_cooldown = settings.global["erm-unit-control-reactive-defense-cooldown"].value,
   next_reactive_defense_garbage_collect_tick = 0,
   reactive_defense_groups = {},
   reactive_defense_cooldown = {},
+  
   
   --- Data for perimeter
   perimeter_mode_enabled = settings.global["erm-unit-control-perimeter-mode"].value,
