@@ -328,7 +328,9 @@ function Indicators.add_unit_indicators(unit_data)
       position = command.destination
     end
 
-    if command.command_type == Core.next_command_type.follow then
+    if command.command_type == Core.next_command_type.follow and 
+        command.target.valid 
+    then
       local draw_obj = draw_line
       {
         color = get_color(command.distraction),
