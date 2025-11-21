@@ -653,6 +653,12 @@ local button_map =
   perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
 }
 
+local check_disabled = {
+  hunt_button = function(script_data) return script_data.hunting_mode_enabled == false  end,
+  --- If you need to use perimeter button, swap it with the commented out code.
+  perimeter_button = function(script_data) return true end -- return script_data.perimeter_mode_enabled == false end
+}
+
 -- Creates or updates the main unit control GUI for a player
 function Module.GUI.make_unit_gui(player)
   local index = player.index
@@ -763,10 +769,9 @@ function Module.GUI.make_unit_gui(player)
   subfooter.add{type = "empty-widget"}.style.horizontally_stretchable = true
   local butts = subfooter.add{type = "table", column_count = 10}
   
-  
   for action, param in pairs (button_map) do
     local pass = true
-    if not script_data.hunting_mode_enabled and action == 'hunt_button' then
+    if check_disabled[action] and check_disabled[action](script_data)  then
       pass = false
     end
 
