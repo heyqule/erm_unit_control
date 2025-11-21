@@ -232,15 +232,10 @@ local is_double_right_click = function(event)
       return false
     end
   end
-  
-  -- Get double click delay from settings
-  -- FIX: Added a safe nil-check for the setting
-  local setting = settings.global["erm-unit-control-double-click-delay"]
-  local double_click_delay = (setting and setting.value) or 30
 
   local duration = event.tick - last_selection_tick
 
-  return duration <= double_click_delay
+  return duration <= script_data.double_click_delay
 end
 
 -- Overrides the default right-click to issue unit commands
@@ -251,20 +246,21 @@ local right_click = function(event)
   local player = game.get_player(event.player_index)
   if not player then return end
 
-  local entities = player.surface.find_entities_filtered{position = event.cursor_position}
-  local player_force = player.force
-  local attack_entities = {}
-  local follow_entity
-  for k, entity in pairs(entities) do
-    local force = entity.force
-    if force == player_force then
-      follow_entity = entity
-    elseif not player_force.get_cease_fire(entity.force) then
-      if entity.get_health_ratio() then
-        attack_entities[k] = entity
-      end
-    end
-  end
+  --@deprecated
+  --local entities = player.surface.find_entities_filtered{position = event.cursor_position}
+  --local player_force = player.force
+  --local attack_entities = {}
+  --local follow_entity
+  --for k, entity in pairs(entities) do
+  --  local force = entity.force
+  --  if force == player_force then
+  --    follow_entity = entity
+  --  elseif not player_force.get_cease_fire(entity.force) then
+  --    if entity.get_health_ratio() then
+  --      attack_entities[k] = entity
+  --    end
+  --  end
+  --end
 
   -- FIX: Swapped single-click and double-click logic to match user expectation
   if is_double_right_click(event) then
@@ -304,7 +300,6 @@ local shift_right_click = function(event)
   end
 
   if follow_entity then
-    --@TODO follow command fix, performance issue
     Movement.make_follow_command(group, follow_entity, true)
     player.play_sound({path = tool_names.unit_move_sound})
     return

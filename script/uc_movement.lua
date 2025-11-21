@@ -353,8 +353,6 @@ end
 
 -- Issues a follow command
 local follow_entity = function(event)
-  --return
-  --@TODO follow command fix, performance issue
   local group = Selection.get_selected_units(event.player_index)
   if not group then return end
 
@@ -390,6 +388,7 @@ Movement.selected_area_actions =
   [tool_names.unit_move_tool] = multi_move_selection,
   [tool_names.unit_patrol_tool] = Movement.patrol_units,
   [tool_names.unit_attack_move_tool] = multi_attack_selection,
+  [tool_names.unit_follow_tool] = multi_move_selection,
 }
 
 Movement.alt_selected_area_actions =
@@ -398,6 +397,7 @@ Movement.alt_selected_area_actions =
   [tool_names.unit_move_tool] = multi_move_selection,
   [tool_names.unit_patrol_tool] = Movement.patrol_units,
   [tool_names.unit_attack_move_tool] = multi_attack_selection,
+  [tool_names.unit_follow_tool] = multi_move_selection,
 }
 
 return Movement

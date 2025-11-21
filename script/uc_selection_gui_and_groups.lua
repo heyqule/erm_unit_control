@@ -67,7 +67,6 @@ function Module.Selection.clear_selected_units(player)
   end
 end
 
-local double_click_delay = 30
 -- Helper to detect double-clicks
 local is_double_click = function(event)
   local this_area = event.area
@@ -93,7 +92,7 @@ local is_double_click = function(event)
   end
 
   local duration = event.tick - last_selection_tick
-  return duration <= double_click_delay
+  return duration <= script_data.double_click_delay
 end
 
 -- Selects all units of the same type on screen
@@ -647,6 +646,7 @@ local button_map =
   patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
   attack_move_button = {sprite = "utility/center", tooltip = {"tooltip." .. tool_names.unit_attack_move_tool}},
   hold_position_button = {sprite = "utility/downloading", tooltip = {"controls.hold-position"}},
+  follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {"tooltip."..tool_names.unit_follow_tool}},
   stop_button = {sprite = "utility/close_black", tooltip = {"controls.stop"}, style = "shortcut_bar_button_small_red"},
   scout_button = {sprite = "utility/map", tooltip = {"controls.scout"}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},

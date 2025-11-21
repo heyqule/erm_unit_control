@@ -53,6 +53,7 @@ local unit_move_tool =
   stack_size = 1,
   flags = {"only-in-cursor", "not-stackable", "spawnable"},
   mouse_cursor = "move-cursor",
+  hidden = true,
   select = {
     border_color = {g = 1},
     cursor_box_type = "copy",
@@ -79,6 +80,7 @@ local unit_patrol_tool =
   type = "selection-tool",
   name = tools.unit_patrol_tool,
   localised_name = {tools.unit_patrol_tool},
+  hidden = true,
   icon = path.."unit_move_tool.png",
   icon_size = 1,
   stack_size = 1,
@@ -120,6 +122,7 @@ local unit_attack_move_tool =
   type = "selection-tool",
   name = tools.unit_attack_move_tool,
   localised_name = {tools.unit_attack_move_tool},
+  hidden = true,
   icon = path.."unit_attack_move_tool.png",
   icon_size = 1,
   stack_size = 1,
@@ -175,6 +178,28 @@ local reactive_defense_icon =
   size = 128,
 }
 
+local unit_follow_tool =
+{
+  type = "selection-tool",
+  name = tools.unit_follow_tool,
+  hidden = true,
+  localised_name = {tools.unit_follow_tool},
+  select = {
+    border_color = {g = 1},
+    cursor_box_type = "not-allowed",
+    mode = {"friend", "entity-with-health"},
+  },
+  alt_select = {
+    border_color = {g = 1, b = 1},
+    cursor_box_type = "not-allowed",
+    mode = {"friend", "entity-with-health"},
+  },
+  icon = path.."unit_attack_tool.png",
+  icon_size = 258,
+  stack_size = 1,
+  flags = {"only-in-cursor", "not-stackable", "spawnable"},
+}
+
 data:extend{
   unit_selection_tool,
   move_confirm_sound,
@@ -185,6 +210,7 @@ data:extend{
   attack_move_cursor,
   unit_attack_move_tool,
   selection_circle,
-  reactive_defense_icon
+  reactive_defense_icon,
+  unit_follow_tool
   --select_units_shortcut
 }

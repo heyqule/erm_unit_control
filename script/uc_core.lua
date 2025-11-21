@@ -48,6 +48,7 @@ Core.script_data =
   last_location = {},
   control_groups = {},
   selected_control_groups = {},
+  double_click_delay = 30,
   max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
   max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
   --- Caches

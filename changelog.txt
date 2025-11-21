@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.2
+Version: 1.1.3
 Date: 2025-11-09
 
   Features:
@@ -9,13 +9,13 @@ Date: 2025-11-09
     - Added perimeter defense strategy (Expreimental), automatically engage enemy when a radar reveal enemy entities. [Default: off]
     - Added "Max selection size" map option to control how many you can select for each group. Default: 100 units
     - Added "Max selection radius" map option to control how far you can select when you select same type of units / perform a large radius select. Default: 100 tiles
-
+    - Added back "Follow target" button on UI since following target performance has been resolved.
   Changes:
     - Added print_global to remote interface for printing storage object
     - Change remote interface name from __erm_unit_control__ to erm_unit_control. Same as the info.json name for consistency.   
 
   Bugfixes: 
-    - Fixed follow command performance issue when target unit stopped moving.
+    - Fixed follow command performance issue when the following target unit stopped moving.
     - Fixed select unit may sometime prevent world interaction.
     - Fixed select unit item appears in logicstic request window.
 
