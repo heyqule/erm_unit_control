@@ -51,6 +51,8 @@ Core.script_data =
   double_click_delay = 30,
   max_selectable_units_limit = settings.global["erm-unit-control-selection-limit"].value,
   max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
+  max_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value,
+  min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30,
   --- Caches
   --- These need to be reset during on_init or on_config_changed because of mod / mod setting changes.
   radius_cache = {},
@@ -74,6 +76,12 @@ Core.script_data =
   --- Data for perimeter
   perimeter_mode_enabled = settings.global["erm-unit-control-perimeter-mode"].value,
 }
+
+Core.set_follow_unit_wait_time = function()
+    storage.max_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value
+    storage.min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30
+end
+
 
 -- A simple 'enum' to define our custom command types
 Core.next_command_type =

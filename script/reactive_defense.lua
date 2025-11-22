@@ -86,7 +86,7 @@ local acceptable_entity_types = util.list_to_map({
   "locomotive",
   "cargo-wagon",
   "fluid-wagon",
-  "container"
+  "container",
 })
 
 local go_home_radius = 2

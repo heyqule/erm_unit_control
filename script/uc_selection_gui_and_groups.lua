@@ -97,7 +97,7 @@ end
 
 -- Selects all units of the same type on screen
 local select_similar_nearby = function(entity)
-  local r = 32 * 4
+  local r = storage.unit_control.max_selectable_radius
   local origin = entity.position
   local area = {{origin.x - r, origin.y - r},{origin.x + r, origin.y + r}}
   return entity.surface.find_entities_filtered{area = area, force = entity.force, name = entity.name}

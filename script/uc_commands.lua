@@ -478,9 +478,9 @@ function Commands.unit_follow(unit_data)
     Commands.set_command(unit_data, {type = defines.command.stop})
     return
   end
-  
+  local script_data = storage.unit_control.follow_unit_wait_time
   local accept_range = 24
-  local wait_time = math.random(60,120) -- wait 1-2s
+  local wait_time = math.random(script_data.min_follow_unit_wait_time, script_data.max_follow_unit_wait_time)
 
   if Core.distance(target.position, unit.position) > accept_range then
     Commands.set_command(unit_data,

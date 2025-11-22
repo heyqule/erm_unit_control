@@ -17,6 +17,14 @@ data:extend({
     order = "a-erm-a"
   },
   {
+    type = "int-setting",
+    name = "erm-unit-control-follow-command-wait",
+    setting_type = "runtime-global",
+    default_value = 180,
+    allowed_values = {60, 90, 120, 150, 180},
+    order = "a-erm-a1"
+  },
+  {
     type = "bool-setting",
     name = "erm-unit-control-hunting-mode",
     setting_type = "runtime-global",

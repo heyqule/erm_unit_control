@@ -428,11 +428,19 @@ local setting_map = {
   ["erm-unit-control-reactive-defense-cooldown"] = "reactive_defender_cooldown",
 }
 
+local setting_function = {
+  ["erm-unit-control-follow-command-wait"] = Core.set_follow_unit_wait_time
+}
+
 local on_runtime_mod_setting_changed = function(event)
   if event.setting_type == "runtime-global" then
     local setting_name = event.setting
     if settings.global[setting_name] and setting_map[setting_name] then
       storage.unit_control[ setting_map[setting_name] ] = settings.global[setting_name].value
+    end
+
+    if settings.global[setting_name] and setting_function[setting_name] then
+      setting_function[setting_name]()
     end
   end
 end
@@ -552,7 +560,8 @@ unit_control.on_init = function()
   storage.unit_control.box_point_cache = {}
   storage.unit_control.move_offset_positions = {}
   storage.unit_control.unit_names = {}
-  
+
+  Core.set_follow_unit_wait_time()
   set_map_settings()
   reset_gui()
 end
@@ -572,7 +581,7 @@ unit_control.on_configuration_changed = function(configuration_changed_data)
   -- Now script_data, Core.script_data, and storage.unit_control
   -- all point to the same, correct, migrated table.
 
-  
+  Core.set_follow_unit_wait_time()
   set_map_settings()
   reset_gui()
   migrated_data.last_location = migrated_data.last_location or {}
