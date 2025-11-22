@@ -7,7 +7,7 @@
   "description": "Based off Klonan's Unit Control. Updated for Factorio 2.0 with additional features. e.g unit control groups, additional group strategies.",
   "factorio_version": "2.0",
   "dependencies": [
-    "base >= 2.0.34",
+    "base >= 2.0.72",
     "(?) ColonyBuilder >= 0.2.0"
   ]
 }
