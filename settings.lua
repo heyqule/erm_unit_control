@@ -13,7 +13,7 @@ data:extend({
     name = "erm-unit-control-selection-radius",
     setting_type = "runtime-global",
     default_value = 100,
-    allowed_values = { 64, 100, 160, 200},
+    allowed_values = { 64, 100, 160, 200, 320},
     order = "a-erm-a"
   },
   {

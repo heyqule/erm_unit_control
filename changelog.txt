@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.3
-Date: 2025-11-09
+Version: 1.1.4
+Date: 2025-11-23
 
   Features:   
     - Everybody! Hail to [Hawke] for adding these new features!
