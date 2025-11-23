@@ -11,7 +11,11 @@ local unit_selection_tool =
   icon = path.."unit_select.png",
   icon_size = 1,
   stack_size = 1,
+  
+  -- FIX: In Factorio 2.0, 'hidden' is a property, not a flag.
+  hidden = true, 
   flags = {"not-stackable", "spawnable", "only-in-cursor"},
+  
   draw_label_for_cursor_render = true,
   entity_filters = {},
   alt_entity_filters = {},
@@ -49,6 +53,7 @@ local unit_move_tool =
   stack_size = 1,
   flags = {"only-in-cursor", "not-stackable", "spawnable"},
   mouse_cursor = "move-cursor",
+  hidden = true,
   select = {
     border_color = {g = 1},
     cursor_box_type = "copy",
@@ -75,6 +80,7 @@ local unit_patrol_tool =
   type = "selection-tool",
   name = tools.unit_patrol_tool,
   localised_name = {tools.unit_patrol_tool},
+  hidden = true,
   icon = path.."unit_move_tool.png",
   icon_size = 1,
   stack_size = 1,
@@ -116,6 +122,7 @@ local unit_attack_move_tool =
   type = "selection-tool",
   name = tools.unit_attack_move_tool,
   localised_name = {tools.unit_attack_move_tool},
+  hidden = true,
   icon = path.."unit_attack_move_tool.png",
   icon_size = 1,
   stack_size = 1,
@@ -134,58 +141,6 @@ local unit_attack_move_tool =
     mode = {"not-same-force", "entity-with-health"},
   },
 }
-
---[[
-local unit_attack_tool =
-{
-  type = "selection-tool",
-  name = tools.unit_attack_tool,
-  localised_name = {tools.unit_attack_tool},
-  selection_mode = {"enemy", "entity-with-force"},
-  alt_selection_mode = {"enemy", "entity-with-force"},
-  selection_cursor_box_type = "not-allowed",
-  alt_selection_cursor_box_type = "not-allowed",
-  icon = path.."unit_attack_tool.png",
-  icon_size = 258,
-  stack_size = 1,
-  flags = {"only-in-cursor", "not-stackable", "spawnable"},
-  selection_color = {r = 1},
-  alt_selection_color = {r = 1},
-}
-
-local unit_force_attack_tool =
-{
-  type = "selection-tool",
-  name = tools.unit_force_attack_tool,
-  localised_name = {tools.unit_force_attack_tool},
-  selection_mode = {"not-same-force", "entity-with-health"},
-  alt_selection_mode = {"not-same-force", "entity-with-health"},
-  selection_cursor_box_type = "not-allowed",
-  alt_selection_cursor_box_type = "not-allowed",
-  icon = path.."unit_attack_tool.png",
-  icon_size = 258,
-  stack_size = 1,
-  flags = {"only-in-cursor", "not-stackable", "spawnable"},
-  selection_color = {r = 1},
-  alt_selection_color = {r = 1},
-}]]
-
---[[local unit_follow_tool =
-{
-  type = "selection-tool",
-  name = tools.unit_follow_tool,
-  localised_name = {tools.unit_follow_tool},
-  selection_mode = {"friend", "any-entity"},
-  alt_selection_mode = {"friend", "any-entity"},
-  selection_cursor_box_type = "copy",
-  alt_selection_cursor_box_type = "copy",
-  icon = path.."unit_attack_tool.png",
-  icon_size = 258,
-  stack_size = 1,
-  flags = {"only-in-cursor", "not-stackable", "spawnable"},
-  selection_color = {g = 1},
-  alt_selection_color = {g = 1},
-}]]
 
 local select_units_shortcut =
 {
@@ -215,6 +170,36 @@ local selection_circle =
   draw_as_glow = true
 }
 
+local reactive_defense_icon =
+{
+  type = "sprite",
+  name = "reactive-defense-icon",
+  filename = path.."shield.png",
+  size = 128,
+}
+
+local unit_follow_tool =
+{
+  type = "selection-tool",
+  name = tools.unit_follow_tool,
+  hidden = true,
+  localised_name = {tools.unit_follow_tool},
+  select = {
+    border_color = {g = 1},
+    cursor_box_type = "not-allowed",
+    mode = {"friend", "entity-with-health"},
+  },
+  alt_select = {
+    border_color = {g = 1, b = 1},
+    cursor_box_type = "not-allowed",
+    mode = {"friend", "entity-with-health"},
+  },
+  icon = path.."unit_attack_tool.png",
+  icon_size = 258,
+  stack_size = 1,
+  flags = {"only-in-cursor", "not-stackable", "spawnable"},
+}
+
 data:extend{
   unit_selection_tool,
   move_confirm_sound,
@@ -225,5 +210,7 @@ data:extend{
   attack_move_cursor,
   unit_attack_move_tool,
   selection_circle,
+  reactive_defense_icon,
+  unit_follow_tool
   --select_units_shortcut
 }
