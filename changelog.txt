@@ -2,7 +2,7 @@
 Version: 1.1.4
 Date: 2025-11-23
 
-  Features:   
+  Features:
     - Everybody! Hail to [Hawke] for adding these new features!
     - Added Control Groups functions. You can have up to 9 control groups. Support hotkeys.
     - Added hunter strategy (Experimental), automatically hunt nearby enemy entities. [Default: off]
@@ -15,7 +15,7 @@ Date: 2025-11-23
     - Changed remote interface name from __erm_unit_control__ to erm_unit_control. Same as the info.json name for consistency.
     - Added back "Follow target" button on UI since following target performance issue has been resolved.   
 
-  Bugfixes: 
+  Bugfixes:
     - Fixed follow command performance issue when the target entity stopped moving.
     - Fixed select unit may sometime prevent world interaction.
     - Fixed select unit item appears in logicstic request window.
