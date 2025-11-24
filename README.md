@@ -1,6 +1,6 @@
 ﻿This is a fork of Klonan's Unit Control.  It has updated for 2.0.  New features have been added in 1.1 build.
 
-It primary targets ERM controllable units.  But it should work for 3rd party unit that support original unit control.
+It primary targets ERM controllable units.  But it should work any "unit" type from 3rd party unit mods.
 
 ### New Features: (Developed by [Hawke] & heyqule)
 - Manage up to 9 control groups with hotkeys.
