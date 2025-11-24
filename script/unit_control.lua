@@ -314,7 +314,7 @@ end
 
 local on_tick = function(event)
   Commands.process_attack_register(event.tick)
-  GUI.check_refresh_gui()
+  GUI.check_refresh_gui(event.tick)
 end
 
 -- FIX: Run the post-load setup safely inside on_tick

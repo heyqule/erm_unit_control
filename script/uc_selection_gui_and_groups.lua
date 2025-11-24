@@ -785,7 +785,9 @@ function Module.GUI.make_unit_gui(player)
 end
 
 -- Checks if any GUIs are marked for refresh and updates them
-function Module.GUI.check_refresh_gui()
+function Module.GUI.check_refresh_gui(tick)
+  -- Refresh ~9 times per second is good enough during on_tick event.
+  if tick and tick % 7 ~= 0 then return end
   local script_data = storage.unit_control
   if not next(script_data.marked_for_refresh) then return end
   for player_index, bool in pairs (script_data.marked_for_refresh) do
