@@ -204,13 +204,25 @@ local type_handlers = {
       next_command.destination_index = 1
       next_destination = next_command.destinations[next_command.destination_index]
     end
-    Commands.set_command(unit_data,
-            {
-              type = defines.command.go_to_location,
-              destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
-              radius = 1,
-              distraction = next_command.distraction
-            })
+    local script_data = storage.unit_control
+    local wait_time = math.random(script_data.min_patrol_unit_wait_time, script_data.max_patrol_unit_wait_time)
+    local commands = {
+      type = defines.command.compound,
+      structure_type = defines.compound_command.logical_and,
+      commands = {
+        {
+          type = defines.command.go_to_location,
+          destination = entity.surface.find_non_colliding_position(entity.name, next_destination, 0, 0.5) or entity.position,
+          radius = 1,
+          distraction = next_command.distraction
+        },
+        {
+          type = defines.command.stop,
+          ticks_to_wait = wait_time,
+        }
+      }
+    }
+    Commands.set_command(unit_data,commands)
   end,
   [next_command_type.attack] = function(data)
     local unit_data = data.unit_data

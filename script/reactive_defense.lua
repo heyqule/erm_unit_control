@@ -1,6 +1,7 @@
 local util = require("script/script_util")
+local Core = require('script/uc_core')
+local Commands = require('script/uc_commands')
 local ReactiveDefense = {}
-
 --[[
 New event based workflow
 
@@ -89,15 +90,35 @@ local acceptable_entity_types = util.list_to_map({
   "container",
 })
 
+local valid_idle_command_type = {
+   [defines.command.wander] = true,
+   [defines.command.stop] = true,
+}
+
+local valid_uc_command_type = {
+  [Core.next_command_type.patrol] = true,
+  --[Core.next_command_type.hold_position] = true,
+}
+
 local go_home_radius = 2
---- assuming target_unit passed valid check
-local has_active_commands = function(target_unit)
-  return 
-    target_unit.commandable and
-    (
-      target_unit.commandable.parent_group or
-      (target_unit.commandable.has_command and target_unit.commandable.command.type ~= defines.command.wander)
-    )
+--- assuming target_unit passed valid check, check whether the target_unit has command that is allowed to be override.
+local is_under_overridable_commands = function(target_unit, unit_control_data)
+  if unit_control_data[target_unit.unit_number] and
+     next(unit_control_data[target_unit.unit_number].command_queue) and
+     valid_uc_command_type[unit_control_data[target_unit.unit_number].command_queue[1].command_type]
+  then
+    return false
+  end
+  
+  local valid_unit_command = target_unit.commandable and
+      (
+          target_unit.commandable.parent_group or
+          (
+              target_unit.commandable.has_command and
+              valid_idle_command_type[target_unit.commandable.command.type] == nil
+          )
+      )
+   return valid_unit_command
 end
 
 function ReactiveDefense.search_enemy(entity)
@@ -136,7 +157,7 @@ function ReactiveDefense.search_enemy(entity)
       type = "unit"
     })
     local target_unit = target_unit_result[1]
-    if not target_unit or has_active_commands(target_unit) then 
+    if not target_unit or is_under_overridable_commands(target_unit, unit_control_data.units) then 
       return 
     end
     
@@ -151,7 +172,6 @@ function ReactiveDefense.search_enemy(entity)
       limit = unit_control_data.max_selectable_units_limit,
       type = "unit"
     })
-    
     if not next(defense_units) then return end
 
     local group_data = unit_control_data.reactive_defense_groups
@@ -292,6 +312,16 @@ function ReactiveDefense.clean_group(group_id)
     --- Clean Data
     local group = script_data.group
     if script_data.group and script_data.group.valid then
+      -- Resume what the unit need to do previously.  e.g Patrol
+      local unit_data_set = storage.unit_control.units
+      for _, member in pairs(group.members) do
+        local unit_data = unit_data_set[member.unit_number]
+        if unit_data and
+          type(unit_data.command_queue) == 'table'
+        then
+          Commands.process_command_queue(unit_data)
+        end
+      end
       group.destroy()
     end
     

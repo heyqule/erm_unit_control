@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.5
+Date: 2025-11-25
+
+  Changes:
+    - Patrols are now able to perform reactive defense.
+    - Unit will resume their original command after completing reactive defense. e.g resuming patrol.
+    - Patrol unit will stop for up to X seconds (configurable, 10 second by default) after they reach the destination. This allows repair bots to catch up for repairing.
+    
+  Bugfixes:
+    - Fixed an issue that [follow command wait interval] setting cache has not override properly.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.4
 Date: 2025-11-23
 

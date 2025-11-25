@@ -53,6 +53,8 @@ Core.script_data =
   max_selectable_radius = settings.global["erm-unit-control-selection-radius"].value,
   max_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value,
   min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30,
+  max_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value,
+  min_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value - 60,
   --- Caches
   --- These need to be reset during on_init or on_config_changed because of mod / mod setting changes.
   radius_cache = {},
@@ -78,8 +80,13 @@ Core.script_data =
 }
 
 Core.set_follow_unit_wait_time = function()
-    storage.max_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value
-    storage.min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30
+    storage.unit_control.max_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value
+    storage.unit_control.min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30
+end
+
+Core.set_patrol_unit_wait_time = function()
+  storage.unit_control.max_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value
+  storage.unit_control.min_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value - 60
 end
 
 
