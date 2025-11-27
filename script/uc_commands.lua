@@ -490,7 +490,7 @@ function Commands.unit_follow(unit_data)
     Commands.set_command(unit_data, {type = defines.command.stop})
     return
   end
-  local script_data = storage.unit_control.follow_unit_wait_time
+  local script_data = storage.unit_control
   local accept_range = 24
   local wait_time = math.random(script_data.min_follow_unit_wait_time, script_data.max_follow_unit_wait_time)
 
