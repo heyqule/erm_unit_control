@@ -135,7 +135,7 @@ local block_by_opened_gui = {
 local can_left_click = function(player, shift)
   -- FIX: MOVED CURSOR CHECKS TO TOP
   -- 1. Check for physical items (Stack)
-  if player.cursor_stack.valid_for_read then return end
+  if player.cursor_stack and player.cursor_stack.valid_for_read then return end
   -- 2. Check for Ghost items (Pipette)
   if player.cursor_ghost then return end
   -- 3. Check for Blueprint Library Records (Book fix)
