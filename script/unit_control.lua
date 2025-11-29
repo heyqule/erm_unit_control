@@ -56,20 +56,26 @@ local function merge_defaults(target, default)
 end
 
 local suicide = function(event)
+  local player = game.players[event.player_index]
+  if not (player and player.valid) then return end
   local group = Selection.get_selected_units(event.player_index)
   if not group then return end
   local unit_number, entity = next(group)
   if entity and entity.valid then 
-    entity.destroy({raise_destroy = true})
+    -- Damage to death so it counts as a kill
+    entity.damage(999999, player.force, "explosion")
   end
 end
 
 local suicide_all = function(event)
+  local player = game.players[event.player_index]
+  if not (player and player.valid) then return end
   local group = Selection.get_selected_units(event.player_index)
   if not group then return end
   for unit_number, entity in pairs (group) do
     if entity and entity.valid then 
-      entity.destroy({raise_destroy = true})
+      -- Damage to death so it counts as a kill
+      entity.damage(999999, player.force, "explosion")
     end
   end
 end
@@ -513,7 +519,7 @@ local on_console_command = function(event)
     -- Test suicide on first unit
     local unit_number, entity = next(group)
     if entity and entity.valid then
-      entity.destroy({raise_destroy = true})
+      entity.damage(999999, player.force, "explosion")
       player.print("Killed one unit via console command")
     end
   elseif event.command == "test_suicide_all" then
@@ -525,7 +531,7 @@ local on_console_command = function(event)
     local count = 0
     for unit_number, entity in pairs(group) do
       if entity and entity.valid then
-        entity.destroy({raise_destroy = true})
+        entity.damage(999999, player.force, "explosion")
         count = count + 1
       end
     end

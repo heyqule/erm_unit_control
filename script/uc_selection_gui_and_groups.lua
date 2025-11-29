@@ -440,7 +440,8 @@ local gui_actions =
     if not group then return end
     local unit_number, entity = next(group)
     if entity and entity.valid then 
-      entity.destroy({raise_destroy = true})
+      -- Damage to death so it counts as a kill
+      entity.damage(999999, player.force, "explosion")
     end
     -- Clear selection after suicide
     Module.Selection.clear_selected_units(player)
@@ -452,7 +453,8 @@ local gui_actions =
     if not group then return end
     for unit_number, entity in pairs(group) do
       if entity and entity.valid then 
-        entity.destroy({raise_destroy = true})
+        -- Damage to death so it counts as a kill
+        entity.damage(999999, player.force, "explosion")
       end
     end
     -- Clear selection after suicide
