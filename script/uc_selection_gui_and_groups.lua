@@ -433,6 +433,31 @@ local gui_actions =
     end
     SharedMovement.hold_position_group(game.get_player(event.player_index), event.shift, group)
   end,
+  suicide_button = function(event)
+    local player = game.players[event.player_index]
+    if not (player and player.valid) then return end
+    local group = Module.Selection.get_selected_units(event.player_index)
+    if not group then return end
+    local unit_number, entity = next(group)
+    if entity and entity.valid then 
+      entity.destroy({raise_destroy = true})
+    end
+    -- Clear selection after suicide
+    Module.Selection.clear_selected_units(player)
+  end,
+  suicide_all_button = function(event)
+    local player = game.players[event.player_index]
+    if not (player and player.valid) then return end
+    local group = Module.Selection.get_selected_units(event.player_index)
+    if not group then return end
+    for unit_number, entity in pairs(group) do
+      if entity and entity.valid then 
+        entity.destroy({raise_destroy = true})
+      end
+    end
+    -- Clear selection after suicide
+    Module.Selection.clear_selected_units(player)
+  end,
   stop_button = function(event)
     local group = Module.Selection.get_selected_units(event.player_index)
     if not group then
@@ -650,7 +675,9 @@ local button_map =
   stop_button = {sprite = "utility/close_black", tooltip = {"controls.stop"}, style = "shortcut_bar_button_small_red"},
   scout_button = {sprite = "utility/map", tooltip = {"controls.scout"}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
-  perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"}
+  perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"},
+  suicide_button = {sprite = "suicide-icon", tooltip = {"controls.suicide"}, style = "shortcut_bar_button_small_red"},
+  suicide_all_button = {sprite = "suicide-all-icon", tooltip = {"controls.suicide-all"}, style = "shortcut_bar_button_small_red"}
 }
 
 local check_disabled = {

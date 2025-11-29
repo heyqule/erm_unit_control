@@ -59,14 +59,18 @@ local suicide = function(event)
   local group = Selection.get_selected_units(event.player_index)
   if not group then return end
   local unit_number, entity = next(group)
-  if entity then entity.die() end
+  if entity and entity.valid then 
+    entity.destroy({raise_destroy = true})
+  end
 end
 
 local suicide_all = function(event)
   local group = Selection.get_selected_units(event.player_index)
   if not group then return end
   for unit_number, entity in pairs (group) do
-    if entity and entity.valid then entity.die() end
+    if entity and entity.valid then 
+      entity.destroy({raise_destroy = true})
+    end
   end
 end
 
@@ -479,6 +483,57 @@ remote.add_interface("erm_unit_control", {
 -- ## EVENT HANDLER SETUP ##
 -- ===================================================================
 
+local on_console_command = function(event)
+  local player = game.players[event.player_index]
+  if not (player and player.valid) then return end
+  
+  if event.command == "make_destructible" then
+    local count = 0
+    for _, entity in pairs(player.surface.find_entities_filtered{force = player.force}) do
+      if entity and entity.valid and entity.destructible ~= nil then
+        entity.destructible = true
+        count = count + 1
+      end
+    end
+    player.print("Made " .. count .. " entities destructible on current surface!")
+  elseif event.command == "test_suicide" then
+    local group = Selection.get_selected_units(event.player_index)
+    if not group then
+      player.print("No units selected!")
+      return
+    end
+    local count = 0
+    for unit_number, entity in pairs(group) do
+      if entity and entity.valid then
+        count = count + 1
+      end
+    end
+    player.print("Selected units: " .. count)
+    
+    -- Test suicide on first unit
+    local unit_number, entity = next(group)
+    if entity and entity.valid then
+      entity.destroy({raise_destroy = true})
+      player.print("Killed one unit via console command")
+    end
+  elseif event.command == "test_suicide_all" then
+    local group = Selection.get_selected_units(event.player_index)
+    if not group then
+      player.print("No units selected!")
+      return
+    end
+    local count = 0
+    for unit_number, entity in pairs(group) do
+      if entity and entity.valid then
+        entity.destroy({raise_destroy = true})
+        count = count + 1
+      end
+    end
+    player.print("Killed " .. count .. " units via console command")
+    Selection.clear_selected_units(player)
+  end
+end
+
 local unit_control = {}
 
 unit_control.events =
@@ -489,6 +544,7 @@ unit_control.events =
   [defines.events.on_player_alt_selected_area] = on_player_alt_selected_area,
   [defines.events.on_gui_click] = GUI.on_gui_click,
   [defines.events.on_gui_closed] = GUI.on_gui_closed,
+  [defines.events.on_console_command] = on_console_command,
 
   [defines.events.on_entity_died] = Entity.on_entity_died,
   [defines.events.on_robot_mined_entity] = Entity.on_entity_removed,

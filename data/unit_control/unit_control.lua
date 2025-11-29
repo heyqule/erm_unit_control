@@ -178,6 +178,24 @@ local reactive_defense_icon =
   size = 128,
 }
 
+local suicide_icon =
+{
+  type = "sprite",
+  name = "suicide-icon",
+  filename = "__base__/graphics/icons/grenade.png",
+  size = 64,
+  flags = {"icon"}
+}
+
+local suicide_all_icon =
+{
+  type = "sprite",
+  name = "suicide-all-icon",
+  filename = "__base__/graphics/icons/explosives.png",
+  size = 64,
+  flags = {"icon"}
+}
+
 local unit_follow_tool =
 {
   type = "selection-tool",
@@ -211,6 +229,8 @@ data:extend{
   unit_attack_move_tool,
   selection_circle,
   reactive_defense_icon,
+  suicide_icon,
+  suicide_all_icon,
   unit_follow_tool
   --select_units_shortcut
 }
