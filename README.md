@@ -2,6 +2,9 @@
 
 It primary targets ERM controllable units.  But it should work any "unit" type from 3rd party unit mods.
 
+https://mods.factorio.com/mod/enemyracemanager (engineer army)
+https://mods.factorio.com/mod/erm_terran (playable terran)
+
 ### New Features: (Developed by [Hawke] & heyqule)
 - Manage up to 9 control groups with hotkeys.
 - Configurable max group selection size, default 100 units, up to 300. (configurable in map settings)
@@ -25,6 +28,9 @@ It primary targets ERM controllable units.  But it should work any "unit" type f
 - **Perimeter Defense** WIP.
 - **Suicide** select unit, press Delete or use GUI
 - **Suicide All** select units, press Shift + Delete or use GUI
+
+Contribution Credit:
+BertTheParrot - Adding suicide/suicide all button to GUI
 
 
 Additional Asset Credit:
