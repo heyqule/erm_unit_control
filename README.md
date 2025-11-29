@@ -14,6 +14,7 @@ It primary targets ERM controllable units.  But it should work any "unit" type f
 - **Select all unit in X radius:** Shift+Alt+left click
 - **Select all unit of same type in X radius:** Double left click on a unit.
 - **Attack Move:**  Select unit > right click on destination. (orange dotted line indicator)
+- **Attack Target** Shift - right click on an enemy target.
 - **Go to destination(non-attack move):**  Select unit > double right click on destination. (green dotted line indicator)
 - **Multiple Waypoints attack move:** Select unit > hold shift and right click on destinations.
 - **Patrol:** Select units > click add patrol waypoint button > right click destination. (shift and right click for multiple destinations).
@@ -22,10 +23,16 @@ It primary targets ERM controllable units.  But it should work any "unit" type f
 - **Hunting Mode** select unit, click hunting mode button, they will search nearby enemy entity to kill.
 - **Reactive Defense** Move units to an active warzone. When certain building type dies nearby, they'll march to that location, then return to original location (with small offset) after mission completed.
 - **Perimeter Defense** WIP.
+- **Suicide** select unit, press Delete or use GUI
+- **Suicide All** select units, press Shift + Delete or use GUI
 
 
 Additional Asset Credit:
 https://www.flaticon.com/free-icon/shield_861377  Shield Icon
+
+https://www.flaticon.com/free-icon/skull_556209 skull Icon
+
+https://www.flaticon.com/free-icon/skulls_3604685 3 skulls icon
 
 
 Fun recommendation:

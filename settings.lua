@@ -14,7 +14,7 @@ data:extend({
     setting_type = "runtime-global",
     default_value = 100,
     allowed_values = { 64, 100, 160, 200, 320},
-    order = "a-erm-a"
+    order = "a-erm-a1"
   },
   {
     type = "int-setting",
@@ -22,7 +22,7 @@ data:extend({
     setting_type = "runtime-global",
     default_value = 180,
     allowed_values = {60, 90, 120, 150, 180},
-    order = "a-erm-a1"
+    order = "a-erm-a2"
   },
   {
     type = "int-setting",
@@ -30,7 +30,14 @@ data:extend({
     setting_type = "runtime-global",
     default_value = 600,
     allowed_values = {180, 300, 480, 600, 720, 900},
-    order = "a-erm-a2"
+    order = "a-erm-a3"
+  },
+  {
+    type = "bool-setting",
+    name = "erm-unit-control-enable-suicide-gui",
+    setting_type = "runtime-global",
+    default_value = true,
+    order = "a-erm-b"
   },
   {
     type = "bool-setting",

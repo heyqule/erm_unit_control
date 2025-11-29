@@ -55,6 +55,7 @@ Core.script_data =
   min_follow_unit_wait_time = settings.global["erm-unit-control-follow-command-wait"].value - 30,
   max_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value,
   min_patrol_unit_wait_time = settings.global["erm-unit-control-patrol-command-wait"].value - 60,
+  enable_suicide_gui = settings.global['erm-unit-control-enable-suicide-gui'].value,
   --- Caches
   --- These need to be reset during on_init or on_config_changed because of mod / mod setting changes.
   radius_cache = {},

@@ -182,7 +182,7 @@ local suicide_icon =
 {
   type = "sprite",
   name = "suicide-icon",
-  filename = "__base__/graphics/icons/grenade.png",
+  filename = path.."suicide.png",
   size = 64,
   flags = {"icon"}
 }
@@ -191,7 +191,7 @@ local suicide_all_icon =
 {
   type = "sprite",
   name = "suicide-all-icon",
-  filename = "__base__/graphics/icons/explosives.png",
+  filename = path.."suicide_all.png",
   size = 64,
   flags = {"icon"}
 }

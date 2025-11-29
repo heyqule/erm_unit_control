@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.8
+Date: 2025-11-28
+
+  Changes:
+    - Added "suicide" and "suicide all" button to GUI [by BertTheParrot]
+    - Added options to hide suicide buttons on GUI. If you tended to accidentally click them.
+    - Improved tooltips on action buttons.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.7
 Date: 2025-11-27
 

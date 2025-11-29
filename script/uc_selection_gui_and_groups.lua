@@ -440,10 +440,8 @@ local gui_actions =
     if not group then return end
     local unit_number, entity = next(group)
     if entity and entity.valid then 
-      entity.destroy({raise_destroy = true})
+      entity.die()
     end
-    -- Clear selection after suicide
-    Module.Selection.clear_selected_units(player)
   end,
   suicide_all_button = function(event)
     local player = game.players[event.player_index]
@@ -452,7 +450,7 @@ local gui_actions =
     if not group then return end
     for unit_number, entity in pairs(group) do
       if entity and entity.valid then 
-        entity.destroy({raise_destroy = true})
+        entity.die()
       end
     end
     -- Clear selection after suicide
@@ -668,16 +666,19 @@ local gui_actions =
 local button_map =
 {
   move_button = {sprite = "utility/mod_dependency_arrow", tooltip = {"tooltip." .. tool_names.unit_move_tool}, style = "shortcut_bar_button_small_green"},
-  patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
   attack_move_button = {sprite = "utility/center", tooltip = {"tooltip." .. tool_names.unit_attack_move_tool}},
-  hold_position_button = {sprite = "utility/downloading", tooltip = {"controls.hold-position"}},
+  stop_button = {sprite = "utility/close_black", tooltip = {"tooltip."..Core.hotkeys.stop}, style = "shortcut_bar_button_small_red"},
+  hold_position_button = {sprite = "utility/downloading", tooltip = {"tooltip."..Core.hotkeys.hold_position}},
+  patrol_button = {sprite = "utility/refresh", tooltip = {"tooltip." .. tool_names.unit_patrol_tool}, style = "shortcut_bar_button_small_blue"},
   follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {"tooltip."..tool_names.unit_follow_tool}},
-  stop_button = {sprite = "utility/close_black", tooltip = {"controls.stop"}, style = "shortcut_bar_button_small_red"},
-  scout_button = {sprite = "utility/map", tooltip = {"controls.scout"}},
+  scout_button = {sprite = "utility/map", tooltip = {"tooltip."..Core.hotkeys.scout}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
   perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"},
-  suicide_button = {sprite = "suicide-icon", tooltip = {"controls.suicide"}, style = "shortcut_bar_button_small_red"},
-  suicide_all_button = {sprite = "suicide-all-icon", tooltip = {"controls.suicide-all"}, style = "shortcut_bar_button_small_red"}
+}
+
+local suicide_button_map = {
+  suicide_button = {sprite = "suicide-icon", tooltip = {"tooltip."..Core.hotkeys.suicide}, style = "shortcut_bar_button_small_red"},
+  suicide_all_button = {sprite = "suicide-all-icon", tooltip = {"tooltip."..Core.hotkeys.suicide_all}, style = "shortcut_bar_button_small_red"}
 }
 
 local check_disabled = {
@@ -793,8 +794,7 @@ function Module.GUI.make_unit_gui(player)
   end
 
   -- Draw the command buttons (Move, Patrol, Hunt, etc.)
-  subfooter.add{type = "empty-widget"}.style.horizontally_stretchable = true
-  local butts = subfooter.add{type = "table", column_count = 10}
+  local left_butts = subfooter.add{type = "table", column_count = 14}
   
   for action, param in pairs (button_map) do
     local pass = true
@@ -803,7 +803,21 @@ function Module.GUI.make_unit_gui(player)
     end
 
     if pass then
-      local button = butts.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
+      local button = left_butts.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
+      button.style.height = 24 * player.display_scale
+      button.style.width = 24 * player.display_scale
+      util.register_gui(script_data.button_actions, button, {type = action})
+    end
+  end
+
+  if script_data.enable_suicide_gui then
+    local pusher = subfooter.add { type = "empty-widget" }
+    pusher.style.vertically_stretchable = true
+    pusher.style.horizontally_stretchable = true
+
+    local suicide_buttons = subfooter.add{type = "table", column_count = 2}
+    for action, param in pairs (suicide_button_map) do
+      local button = suicide_buttons.add{type = "sprite-button", sprite = param.sprite, tooltip = param.tooltip, style = param.style or "shortcut_bar_button_small"}
       button.style.height = 24 * player.display_scale
       button.style.width = 24 * player.display_scale
       util.register_gui(script_data.button_actions, button, {type = action})
