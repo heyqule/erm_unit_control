@@ -163,7 +163,28 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
   end
   --]]
 
-  -- === PRIORITY 2: 960-TILE SEARCH (Find Nests) ===
+  -- === PRIORITY 2: LOCAL COMBAT SCAN (Finish the Fight) ===
+  -- Clean up any nearby enemies that were missed.
+  local nearby_enemy = unit.surface.find_nearest_enemy({
+    position = unit.position,
+    max_distance = LOCAL_COMBAT_RANGE,
+    force = unit_force
+  })
+
+  if nearby_enemy then
+    data.destination = nil
+    data.last_combat_tick = game.tick
+    data.regroup_position = nearby_enemy.position
+
+    set_command_func(unit_data, {
+      type = defines.command.attack,
+      target = nearby_enemy,
+      distraction = defines.distraction.by_enemy
+    })
+    return
+  end
+
+  -- === PRIORITY 3: 960-TILE SEARCH (Find Nests) ===
   -- Look for distant targets like spawners.
   if data.target and not data.target.valid then
     data.target = nil
@@ -188,27 +209,6 @@ function HuntingMode.update(unit_data, set_command_func, set_unit_idle_func, eve
     set_command_func(unit_data, {
       type = defines.command.attack,
       target = data.target,
-      distraction = defines.distraction.by_enemy
-    })
-    return
-  end
-  
-  -- === PRIORITY 3: LOCAL COMBAT SCAN (Finish the Fight) ===
-  -- Clean up any nearby enemies that were missed.
-  local nearby_enemy = unit.surface.find_nearest_enemy({
-    position = unit.position,
-    max_distance = LOCAL_COMBAT_RANGE,
-    force = unit_force
-  })
-  
-  if nearby_enemy then
-    data.destination = nil
-    data.last_combat_tick = game.tick
-    data.regroup_position = nearby_enemy.position
-    
-    set_command_func(unit_data, {
-      type = defines.command.attack,
-      target = nearby_enemy,
       distraction = defines.distraction.by_enemy
     })
     return
