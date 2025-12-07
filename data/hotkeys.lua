@@ -112,6 +112,7 @@ local select_all_units =
   type = "custom-input",
   name = hotkeys.select_all_units,
   localised_name = {"controls", hotkeys.select_all_units}, -- FIX: Use {"section", "key"} format
+  localised_description = {"controls-description", hotkeys.select_all_units},
   key_sequence = "SHIFT + ALT + mouse-button-1",
   consuming = "game-only",
   order="bi",
