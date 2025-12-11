@@ -316,10 +316,6 @@ end
 -- ## MISC AND LIFECYCLE FUNCTIONS ##
 -- ===================================================================
 
-local on_tick = function(event)
-  Commands.process_attack_register(event.tick)
-  GUI.check_refresh_gui(event.tick)
-end
 
 -- FIX: Run the post-load setup safely inside on_tick
 -- This logic was moved from on_load
@@ -487,7 +483,6 @@ local unit_control = {}
 
 unit_control.events =
 {
-  [defines.events.on_tick] = on_tick,
   [defines.events.on_entity_settings_pasted] = Entity.on_entity_settings_pasted,
   [defines.events.on_player_selected_area] = on_player_selected_area,
   [defines.events.on_player_alt_selected_area] = on_player_alt_selected_area,
@@ -599,5 +594,11 @@ unit_control.on_load = function()
   -- This function MUST NOT modify the 'storage' table.
   -- We set a file-local flag to tell on_tick to run the setup logic.
 end
+
+unit_control.on_nth_tick = {
+  [31] = Commands.process_attack_register,
+  -- Refresh ~9 times per second
+  [7] = GUI.check_refresh_gui
+}
 
 return unit_control

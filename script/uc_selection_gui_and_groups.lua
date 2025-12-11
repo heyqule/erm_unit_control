@@ -12,6 +12,9 @@ local util = require("script/script_util")
 local next_command_type = Core.next_command_type
 local tool_names = Core.tool_names
 
+local proximity_radius = 64
+local distance = util.distance
+
 -- Create a main table to return all functions
 local Module = {
   Selection = {},
@@ -217,6 +220,23 @@ function Module.ControlGroups.set_control_group(event, group_number)
 end
 
 -- Core logic for selecting a control group
+function Module.ControlGroups.process_control_group_ui(player, group_number, entities_to_select)
+  local player_index = player.index
+  local script_data = storage.unit_control
+  
+  Module.Selection.clear_selected_units(player)
+
+  if next(entities_to_select) then
+    script_data.selected_control_groups[player_index] = group_number
+    Module.Selection.process_unit_selection(entities_to_select, player)
+  else
+    -- Group was full of dead units and is now empty
+    script_data.control_groups[player_index][group_number] = nil
+    script_data.marked_for_refresh[player_index] = true
+    player.play_sound({path = "utility/cannot_build"})
+  end
+end
+
 function Module.ControlGroups.select_control_group(event, group_number)
   local player_index = event.player_index
   local player = game.get_player(player_index)
@@ -249,20 +269,7 @@ function Module.ControlGroups.select_control_group(event, group_number)
 
   -- Auto-clean the group of dead units
   script_data.control_groups[player_index][group_number] = valid_unit_numbers
-
-  Module.Selection.clear_selected_units(player)
-
-  if table_size(entities_to_select) > 0 then
-    script_data.selected_control_groups[player_index] = group_number
-    Module.Selection.process_unit_selection(entities_to_select, player)
-    return entities_to_select
-  else
-    -- Group was full of dead units and is now empty
-    script_data.control_groups[player_index][group_number] = nil
-    script_data.marked_for_refresh[player_index] = true
-    player.play_sound({path = "utility/cannot_build"})
-    return nil
-  end
+  return entities_to_select
 end
 
 -- Selects a group and also centers the camera on them
@@ -276,19 +283,32 @@ function Module.ControlGroups.select_control_group_and_center_camera(event, grou
   local selected_size = table_size(selected_entities)
   if selected_size > 0 then
     -- Find the center position of the group
-    local total_x, total_y = 0, 0
-    for _, entity in pairs(selected_entities) do
-      total_x = total_x + entity.position.x
-      total_y = total_y + entity.position.y
+    local center_pos = selected_entities[1].position
+    local temp_pos 
+    local nearby_unit_count = 0
+    local new_unit_count = 0
+    for i = 1, selected_size, 10 do
+      local entity = selected_entities[i]
+      if entity then
+        if distance(center_pos, entity.position) < proximity_radius then
+          nearby_unit_count = nearby_unit_count + 1
+        else
+          new_unit_count = new_unit_count + 1
+          if not temp_pos and new_unit_count > nearby_unit_count then
+            temp_pos = entity.position
+          end
+        end
+      end
     end
 
-    local center_pos = {
-      x = total_x / selected_size,
-      y = total_y / selected_size
-    }
+    if new_unit_count > nearby_unit_count then
+      center_pos = temp_pos
+    end
 
-    --- Don't move camera if distance is lower than 48 tile from player position
-    if util.distance(player.position, center_pos) < 48 then
+
+    --- Don't move camera if distance is lower than 64 tile from player position
+    if distance(player.position, center_pos) <= proximity_radius then
+      Module.ControlGroups.process_control_group_ui(player, group_number, selected_entities)
       return
     end
 
@@ -307,7 +327,6 @@ function Module.ControlGroups.select_control_group_and_center_camera(event, grou
       else
         player.print({"ERM Unit Control: Could not find Space Exploration zone data for this surface."})
       end
-
     else
       local zoom = player.zoom
       player.set_controller {
@@ -316,6 +335,8 @@ function Module.ControlGroups.select_control_group_and_center_camera(event, grou
       }
       player.zoom = zoom
     end
+
+    Module.ControlGroups.process_control_group_ui(player, group_number, selected_entities)
   end
 end
 
@@ -564,13 +585,16 @@ local gui_actions =
       
       Module.Selection.clear_selected_units(player) 
       
-      if table_size(entities_list) > 0 then
+      if next(entities_list) then
         Module.Selection.process_unit_selection(entities_list, player)
       end
 
     else
       -- Regular selection (Left-click)
-      Module.ControlGroups.select_control_group({player_index = player.index}, group_number)
+      local selected_entities = Module.ControlGroups.select_control_group({player_index = player.index}, group_number)
+      if selected_entities and next(selected_entities) then
+        Module.ControlGroups.process_control_group_ui(player, group_number, selected_entities)
+      end
     end
   end,
 
@@ -826,9 +850,7 @@ function Module.GUI.make_unit_gui(player)
 end
 
 -- Checks if any GUIs are marked for refresh and updates them
-function Module.GUI.check_refresh_gui(tick)
-  -- Refresh ~9 times per second is good enough during on_tick event.
-  if tick and tick % 7 ~= 0 then return end
+function Module.GUI.check_refresh_gui()
   local script_data = storage.unit_control
   if not next(script_data.marked_for_refresh) then return end
   for player_index, bool in pairs (script_data.marked_for_refresh) do

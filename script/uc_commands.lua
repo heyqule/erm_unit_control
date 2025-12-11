@@ -396,8 +396,7 @@ function Commands.process_distraction_completed(event)
 end
 
 -- Periodically processes the list of units waiting to attack
-function Commands.process_attack_register(tick)
-  if tick % 31 ~= 0 then return end
+function Commands.process_attack_register(event)
   local script_data = storage.unit_control
   local register = script_data.attack_register
   if not next(register) then return end

@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.11
+Date: 2025-12-11
+
+  Changes:
+    - Increased control group centering camera activation distance from 48 -> 64 tiles.
+    - Optimize control group centering camera to focus on area with most units.
+    - Unit GUI persists when switching from normal view to map view after pressing control group hotkeys.   
+    - Moved functions from on_tick to on_nth_tick to reduce idle performance cost.    
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.10
 Date: 2025-12-07
 
