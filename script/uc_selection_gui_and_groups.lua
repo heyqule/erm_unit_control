@@ -306,34 +306,31 @@ function Module.ControlGroups.select_control_group_and_center_camera(event, grou
     end
 
 
-    --- Don't move camera if distance is lower than 64 tile from player position
-    if distance(player.position, center_pos) <= proximity_radius then
-      Module.ControlGroups.process_control_group_ui(player, group_number, selected_entities)
-      return
-    end
+    --- Move camera if center_position is further than 64 tiles.
+    if distance(player.position, center_pos) > proximity_radius then
+      -- This block handles compatibility with Space Exploration/Space Age
+      if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
+        local surface = selected_entities[1].surface
+        local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
 
-    -- This block handles compatibility with Space Exploration/Space Age
-    if remote.interfaces["space-exploration"] and remote.interfaces["space-exploration"]["remote_view_start"] then
-      local surface = selected_entities[1].surface
-      local zone_data = remote.call("space-exploration", "get_zone_from_surface_index", {surface_index = surface.index})
-
-      if zone_data and zone_data.name then
-        remote.call("space-exploration", "remote_view_start", {
-          player = player,
-          zone_name = zone_data.name,
-          position = center_pos,
-          freeze_history = true
-        })
+        if zone_data and zone_data.name then
+          remote.call("space-exploration", "remote_view_start", {
+            player = player,
+            zone_name = zone_data.name,
+            position = center_pos,
+            freeze_history = true
+          })
+        else
+          player.print({"ERM Unit Control: Could not find Space Exploration zone data for this surface."})
+        end
       else
-        player.print({"ERM Unit Control: Could not find Space Exploration zone data for this surface."})
+        local zoom = player.zoom
+        player.set_controller {
+          type = defines.controllers.remote,
+          position = center_pos,
+        }
+        player.zoom = zoom
       end
-    else
-      local zoom = player.zoom
-      player.set_controller {
-        type = defines.controllers.remote,
-        position = center_pos,
-      }
-      player.zoom = zoom
     end
 
     Module.ControlGroups.process_control_group_ui(player, group_number, selected_entities)

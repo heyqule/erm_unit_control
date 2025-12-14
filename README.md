@@ -6,7 +6,7 @@ https://mods.factorio.com/mod/enemyracemanager (engineer army)
 https://mods.factorio.com/mod/erm_terran (playable terran)
 
 ### New Features: (Developed by [Hawke] & heyqule)
-- Manage up to 9 control groups with hotkeys.
+- Manage up to 9 control groups with hotkeys. This only works on same surface as your character is on.
 - Configurable max group selection size, default 100 units, up to 300. (configurable in map settings)
 - Configurable max group selection radius, default 100 tiles, up to 320. (configurable in map settings)
 - Hunting Strategy - command a group to perform search and destroy operation
