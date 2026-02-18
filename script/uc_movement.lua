@@ -44,9 +44,9 @@ local path_flags =
   no_break = true
 }
 
-local min = 1
--- Gets the size of the largest unit and speed of the slowest unit
-local get_group_size_and_speed = function(group)
+local min = 1  -- FIX: Restore min variable used in get_group_size_and_speed
+
+local calculate_size_speed = function(group)
   local speed = math.huge
   local size = 0
   local checked = {}
@@ -68,8 +68,44 @@ local get_group_size_and_speed = function(group)
   return size, speed
 end
 
+-- Gets the size of the largest unit and speed of the slowest unit
+-- OPTIMIZED: Cache group size/speed to avoid recalculation every move
+local get_group_size_and_speed = function(group)
+  -----@profiler
+  --local profiler = game.create_profiler()
+  -- Build a stable cache key from the group's first unit number and size
+
+  local script_data = storage.unit_control
+  local speed = math.huge
+  local size = 0
+
+  if script_data.runtime_optimization_enabled then
+    local group_speed_size_cache = script_data.group_speed_size_cache or {}
+    local cache_key = next(group) .. '-' .. table_size(group)
+    --OPTIMIZATION: Check cache (simple but effective for repeated moves)
+    script_data.group_speed_size_cache = group_speed_size_cache
+
+    if group_speed_size_cache[cache_key] then
+      -----@profiler
+      --profiler.stop()
+      --log({"","[uc_movement] cached get_group_size_and_speed: ", profiler})
+      return group_speed_size_cache[cache_key].size, group_speed_size_cache[cache_key].speed
+    end
+    size, speed = calculate_size_speed(group)
+    group_speed_size_cache[cache_key] = {size = size, speed = speed, tick = game.tick}
+  else
+    size, speed = calculate_size_speed(group)
+  end
+
+  -----@profiler
+  --profiler.stop()
+  --log({"","[uc_movement] get_group_size_and_speed: ", profiler})
+  return size, speed
+end
+
 -- Generates and assigns 'go_to_location' commands for a whole group,
 -- arranging them in a formation.
+-- OPTIMIZED: Batch process units to reduce single-tick load
 function Movement.make_move_command(param)
   local origin = param.position
   local distraction = param.distraction or defines.distraction.by_enemy

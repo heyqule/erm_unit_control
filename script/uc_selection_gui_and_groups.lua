@@ -51,6 +51,7 @@ end
 function Module.Selection.deselect_units(unit_data)
   if unit_data.player then
     local script_data = storage.unit_control
+    --- @TODO, change it to a number/string key, instead of table key(memory_address key)
     script_data.marked_for_refresh[unit_data.player] = true
     unit_data.player = nil
   end

@@ -78,6 +78,12 @@ Core.script_data =
   
   --- Data for perimeter
   perimeter_mode_enabled = settings.global["erm-unit-control-perimeter-mode"].value,
+  
+  --- OPTIMIZATION: Runtime Optimization, reduce accuracy of certain functions
+  group_speed_size_cache = {},  -- OPTIMIZATION: Cache for group size/speed calculations
+  -- Action debounce settings (can be adjusted by server via mod settings)
+  runtime_optimization_enabled = settings.global["erm-unit-control-enable-runtime-optimization"].value,
+  unit_indicator_update_interval = 20
 }
 
 Core.set_follow_unit_wait_time = function()

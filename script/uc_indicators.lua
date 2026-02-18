@@ -255,7 +255,20 @@ local get_color = function(distraction)
 end
 
 -- Main function to draw all indicators for a unit (selection, destination lines)
+-- OPTIMIZED: Batch update indicators to avoid single-tick overhead
 function Indicators.add_unit_indicators(unit_data)
+  -- OPTIMIZATION: Only update indicators every few ticks to reduce overhead
+  -- This is especially useful during combat with hundreds of units
+  local script_data = storage.unit_control
+  
+  if script_data.runtime_optimization_enabled and unit_data.last_indicator_update then
+    if game.tick - unit_data.last_indicator_update < script_data.unit_indicator_update_interval then
+      -- Skip this update, indicators are fresh enough
+      return
+    end
+  end
+  unit_data.last_indicator_update = game.tick
+  
   Indicators.update_selection_indicators(unit_data)
   Indicators.clear_indicators(unit_data)
 

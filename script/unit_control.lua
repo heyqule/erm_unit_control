@@ -317,8 +317,6 @@ end
 -- ===================================================================
 
 
--- FIX: Run the post-load setup safely inside on_tick
--- This logic was moved from on_load
 local function reset_gui()
   local script_data = storage.unit_control
   for player_index, frame in pairs(script_data.open_frames) do
@@ -426,7 +424,8 @@ local setting_map = {
   ["erm-unit-control-reactive-defense-unit-search-range"] = "reactive_defender_unit_search_range",
   ["erm-unit-control-perimeter-mode"] = "perimeter_mode_enabled",
   ["erm-unit-control-reactive-defense-cooldown"] = "reactive_defender_cooldown",
-  ["erm-unit-control-enable-suicide-gui"] = "enable_suicide_gui"
+  ["erm-unit-control-enable-suicide-gui"] = "enable_suicide_gui",
+  ["erm-unit-control-enable-runtime-optimization"] = "runtime_optimization_enabled"
 }
 
 local setting_function = {
@@ -577,6 +576,7 @@ unit_control.on_configuration_changed = function(configuration_changed_data)
   migrated_data.box_point_cache = {}
   migrated_data.move_offset_positions = {}
   migrated_data.unit_names = {}
+  migrated_data.group_speed_size_cache = {}
   
   
   -- Now script_data, Core.script_data, and storage.unit_control
@@ -595,10 +595,38 @@ unit_control.on_load = function()
   -- We set a file-local flag to tell on_tick to run the setup logic.
 end
 
+-- cleanup_group_speed_size_cache cache have 1 minute live time.
+local cache_time = 60 * second
+local cleanup_group_speed_size_cache = function()
+  local script_data = storage.unit_control
+  local cache = script_data.group_speed_size_cache
+  local current_tick = game.tick
+  
+  if cache and next(cache) then
+    for k, v in pairs(cache) do
+      if current_tick - v.tick > cache_time then
+        cache[k] = nil
+      end
+    end
+  end
+end
+
+local cleanup_button_actions = function()
+  local script_data = storage.unit_control
+  local button_actions = script_data.button_actions
+  for player_index, _ in pairs(button_actions) do
+    local frame = script_data.open_frames
+    if not (frame and frame.valid) then
+      button_actions[player_index] = nil
+    end
+  end
+end
+
 unit_control.on_nth_tick = {
   [31] = Commands.process_attack_register,
-  -- Refresh ~9 times per second
-  [7] = GUI.check_refresh_gui
+  [7] = GUI.check_refresh_gui,
+  [3601] = cleanup_group_speed_size_cache,
+  [3603] = cleanup_button_actions,
 }
 
 return unit_control

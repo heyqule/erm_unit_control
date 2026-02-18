@@ -18,6 +18,7 @@ function Entity.deregister_unit(entity)
   if not unit_number then return end
   
   local script_data = storage.unit_control
+  local unit_number = entity.unit_number
   local unit = script_data.units[unit_number]
   if not unit then return end
   script_data.units[unit_number] = nil
@@ -27,17 +28,9 @@ function Entity.deregister_unit(entity)
   local group = unit.group
   if group then
     group[unit_number] = nil
-    
-    -- If group is now empty, clean up any shared data
-    if not next(group) then
-      if script_data.group_hunt_data and script_data.group_hunt_data[group] then
-         script_data.group_hunt_data[group] = nil
-      end
+    if not next(group) and script_data.group_hunt_data[group] then
+      script_data.group_hunt_data[group] = nil
     end
-  end
-  local player_index = unit.player
-  if not player_index then
-    return
   end
 end
 
@@ -46,11 +39,10 @@ end
 function Entity.on_entity_removed(event)
   local entity = event.entity
   if not (entity and entity.valid) then return end
+  
+  local script_data = storage.unit_control
   local unit_number = entity.unit_number
-  if not unit_number then return end
-
-    local script_data = storage.unit_control  
-  if not script_data.units[entity.unit_number] then return end
+  if not script_data.units[unit_number] then return end
     
   script_data.target_indicators[Core.get_unit_number(entity)] = nil
   
@@ -59,20 +51,16 @@ function Entity.on_entity_removed(event)
     -- FIX: Check frame validity before indexing
     local frame = script_data.open_frames[player_index]
     if frame and frame.valid then
-      local group_changed = false
       for group_id, unit_list in pairs(player_groups) do
         if unit_list[unit_number] then
-          group_changed = true
-          break -- Found it, no need to keep searching
+          script_data.marked_for_refresh[player_index] = true
+          break
         end
-      end
-      if group_changed then
-        script_data.marked_for_refresh[player_index] = true
       end
     end
   end
   
-  Entity.deregister_unit(event.entity)
+  Entity.deregister_unit(entity)
 end
 
 function Entity.on_entity_died(event)
