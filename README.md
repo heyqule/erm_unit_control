@@ -43,5 +43,5 @@ https://mods.factorio.com/mod/erm_protoss (some playable protoss units in late g
 - https://www.flaticon.com/free-icon/skull_556209 skull Icon
 - https://www.flaticon.com/free-icon/skulls_3604685 3 skulls icon
 
-- Other compatible unit mods:
+### Other compatible unit mods:
 https://mods.factorio.com/mod/kittycat  
