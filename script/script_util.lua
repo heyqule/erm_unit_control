@@ -20,22 +20,8 @@ util.register_gui = function(data, gui_element, param)
     data[gui_element.player_index] = {}
     player_data = data[gui_element.player_index]
   end
+  param['tick'] = game.tick
   player_data[gui_element.index] = param
-end
-
-util.gui_action_handler = function(event, data, functions)
-  error("don't actually use me")
-  if not data then error("Gui action handler data is nil") end
-  if not functions then error("Gui action handler functions is nil") end
-  local element = event.element
-  if not (element and element.valid) then return end
-  local player_data = data[event.player_index]
-  if not player_data then return end
-  local action = player_data[element.index]
-  if action then
-    functions[action.type](event, action)
-    return true
-  end
 end
 
 util.center = function(area)
@@ -43,7 +29,9 @@ util.center = function(area)
 end
 
 util.distance = function(p1, p2)
-  return (((p1.x - p2.x) ^ 2) + ((p1.y - p2.y) ^ 2)) ^ 0.5
+  local dx = (p1.x - p2.x)
+  local dy = (p1.y - p2.y)
+  return (dx * dx + dy * dy) ^ 0.5
 end
 
 util.radius = function(area)

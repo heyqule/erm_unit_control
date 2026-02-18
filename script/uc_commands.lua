@@ -306,6 +306,9 @@ end
 
 -- Assigns attack targets for a group, finding the closest enemy for each unit
 local bulk_attack_closest = function(entities, group)
+  ---@profiler
+  --local profiler = game.create_profiler()
+  
   for k, entity in pairs (entities) do
     if not (entity.valid and (entity.get_health_ratio() or 0) > 0) then
       entities[k] = nil
@@ -318,6 +321,9 @@ local bulk_attack_closest = function(entities, group)
       table.remove(unit_data.command_queue, 1)
       Commands.process_command_queue(unit_data)
     end
+    ---@profiler
+    --profiler.stop()
+    --log({"","[uc_movement] no index bulk_attack_closest: ", profiler})
     return
   end
 
@@ -331,14 +337,26 @@ local bulk_attack_closest = function(entities, group)
     target = false
   }
 
+  local targets_cache = {}
+  
   for k, unit_data in pairs (group) do
     local unit = unit_data.entity
     if unit.valid then
-      command.target = get_closest(unit.position, entities)
-      Indicators.draw_temp_attack_indicator(command.target, unit_data.player)
-      Commands.set_command(unit_data, command)
+      local target_key = math.floor(unit.position.x / 32) .. "," .. math.floor(unit.position.y / 32)
+      if not targets_cache[target_key] then
+        targets_cache[target_key] = get_closest(unit.position, entities)
+      end
+
+      command.target = targets_cache[target_key]
+      if command.target then
+        Indicators.draw_temp_attack_indicator(command.target, unit_data.player)
+        Commands.set_command(unit_data, command)
+      end
     end
   end
+  ---@profiler
+  --profiler.stop()
+  --log({"","[uc_movement] bulk_attack_closest: ", profiler})
 end
 
 local wants_enemy_attack =

@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.12
+Date: 2026-02-17
+
+  Changes:
+    - Added "Runtime Optimization" option to reduce code executions under certain heavy control situations. e.g PVP or very large unit selection. (Default: OFF) 
+    - new unit indicator updates under 20 ticks are debounced. The unit path indicator may be inaccurate.
+    - Some grouping functions rely on cached data.  Certain group controls may behave slightly different.
+    - RU translation update.
+    - Special Thanks: ZepCannon for above changes.  
+    
+  Bugfixes:
+    - Fixed an issue from button actions tracker.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.11
 Date: 2025-12-11
 

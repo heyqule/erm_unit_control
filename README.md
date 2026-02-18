@@ -4,6 +4,8 @@ It primary targets ERM controllable units.  But it should work any "unit" type f
 
 https://mods.factorio.com/mod/enemyracemanager (engineer army)
 https://mods.factorio.com/mod/erm_terran (playable terran)
+https://mods.factorio.com/mod/erm_zerg (some playable zerg units in late game)
+https://mods.factorio.com/mod/erm_protoss (some playable protoss units in late game)
 
 ### New Features: (Developed by [Hawke] & heyqule)
 - Manage up to 9 control groups with hotkeys. This only works on same surface as your character is on.
@@ -12,6 +14,10 @@ https://mods.factorio.com/mod/erm_terran (playable terran)
 - Hunting Strategy - command a group to perform search and destroy operation
 - Reactive Defensive Strategy - When a player entity killed, the nearby units will come to aid, then return to original location once the operation is completed.
 - Perimeter Defending Strategy - When radar scan an chunk with enemy buildings, The nearby units will go attack that enemy base, then return to radar.
+
+### Contribution Credit:
+- BertTheParrot - Added suicide/suicide all button to GUI.
+- ZepCannon - Implemented soome runtime optimizations.
 
 ### How to use:
 - **Select all unit in X radius:** Shift+Alt+left click
@@ -29,17 +35,13 @@ https://mods.factorio.com/mod/erm_terran (playable terran)
 - **Suicide** select unit, press Delete or use GUI
 - **Suicide All** select units, press Shift + Delete or use GUI
 
-Contribution Credit:
-BertTheParrot - Adding suicide/suicide all button to GUI
+### Known Issues:
+- Max selection limit can be bypass under certain scenario. Bypassing it may cause performance issues. 
 
+### Additional Asset Credit:
+- https://www.flaticon.com/free-icon/shield_861377  Shield Icon
+- https://www.flaticon.com/free-icon/skull_556209 skull Icon
+- https://www.flaticon.com/free-icon/skulls_3604685 3 skulls icon
 
-Additional Asset Credit:
-https://www.flaticon.com/free-icon/shield_861377  Shield Icon
-
-https://www.flaticon.com/free-icon/skull_556209 skull Icon
-
-https://www.flaticon.com/free-icon/skulls_3604685 3 skulls icon
-
-
-Fun recommendation:
+### Other compatible unit mods:
 https://mods.factorio.com/mod/kittycat  

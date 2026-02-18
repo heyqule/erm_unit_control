@@ -76,5 +76,12 @@ data:extend({
     default_value = false,
     order = "a-erm-e"
   },
+  {
+    type = "bool-setting",
+    name = "erm-unit-control-enable-runtime-optimization",
+    setting_type = "runtime-global",
+    default_value = false,
+    order = "a-erm-f"
+  },
 })
 
