@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.13
+Date: 2026-03-26
+
+  Changes:
+    - Bind "ERM Clear Cursor" custom input to Q. It MUST be same key as basic interaction "clear cursor". It fixes the 2nd issue below.
+
+  Bugfixes:
+    - Fixed left click on empty toolbar brought up the unit-selection tool.
+    - Fixed drag, left click on empty space, then press Q while selection box is visible cause "unit-selection" to get stuck on your cursor.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.12
 Date: 2026-02-17
 
@@ -8,7 +19,7 @@ Date: 2026-02-17
     - Some grouping functions rely on cached data.  Certain group controls may behave slightly different.
     - RU translation update.
     - Special Thanks: ZepCannon for above changes.  
-    
+
   Bugfixes:
     - Fixed an issue from button actions tracker.
 
