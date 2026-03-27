@@ -13,6 +13,7 @@ data.hotkeys =
   scout = "scout",
   select_all_units = "select-all-units",
   select_all_deployers = "select-all-deployers",
+  clear_cursor = "erm-clear-cursor"
 }
 
 data.unit_tools =

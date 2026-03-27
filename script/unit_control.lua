@@ -136,7 +136,15 @@ local block_by_opened_gui = {
 }
 
 -- Checks if the player is in a state that allows our left-click override
-local can_left_click = function(player, shift)
+local can_left_click = function(event, shift)
+  local player = game.get_player(event.player_index)
+  if not player or not player.valid then return end
+
+  -- kill all in_gui clicks?
+  if event.in_gui then
+    return false
+  end
+  
   -- FIX: MOVED CURSOR CHECKS TO TOP
   -- 1. Check for physical items (Stack)
   if player.cursor_stack and player.cursor_stack.valid_for_read then return end
@@ -146,22 +154,22 @@ local can_left_click = function(player, shift)
   if player.cursor_record then return end
 
   -- FIX: Check for Open GUIs (Logistic fix)
-  if player.opened then
-    -- Exception: Allow clicking if interacting with OUR mod's GUI frame
-    if player.opened.object_name == "LuaGuiElement" and player.opened.name == "erm_unit_control_main_frame" then
-      return true
-    else
-      -- If any other GUI (Inventory, Blueprint Book, Chest) is open, block the tool.
-      return false 
-    end
-  end
+  --if player.opened then
+  --  -- Exception: Allow clicking if interacting with OUR mod's GUI frame
+  --  if player.opened.object_name == "LuaGuiElement" and player.opened.name == "erm_unit_control_main_frame" then
+  --    return true
+  --  else
+  --    -- If any other GUI (Inventory, Blueprint Book, Chest) is open, block the tool.
+  --    return false 
+  --  end
+  --end
 
   -- FIX: Specific check for the Controller GUI (Character/Inventory/Logistics screen)
-  if player.opened_gui_type == defines.gui_type.controller then
-    return false
-  end
-
-  if block_by_opened_gui[player.opened_gui_type] then return end
+  --if player.opened_gui_type == defines.gui_type.controller then
+  --  return false
+  --end
+  --
+  --if block_by_opened_gui[player.opened_gui_type] then return end
   
   if not shift and player.render_mode == defines.render_mode.chart then return end
   
@@ -196,7 +204,7 @@ end
 -- Overrides the default left-click to start our unit selection
 local left_click = function(event)
   local player = game.get_player(event.player_index)
-  if not can_left_click(player) then
+  if not can_left_click(event) then
     return
   end
   if set_cursor_to_select(player) then
@@ -207,7 +215,7 @@ end
 -- Overrides the default shift-left-click
 local shift_left_click = function(event)
   local player = game.get_player(event.player_index)
-  if not can_left_click(player, true) then
+  if not can_left_click(event, true) then
     return
   end
   if set_cursor_to_select(player) then
@@ -374,6 +382,18 @@ local on_player_alt_selected_area = function(event)
   return action(event)
 end
 
+local erm_tools_map = util.list_to_map(tool_names)
+
+local clear_cursor = function(event)
+  local player = game.get_player(event.player_index)
+  if not player then return end
+  local cursor = player.cursor_stack
+  if not (cursor and cursor.valid and cursor.valid_for_read) then return end
+  if erm_tools_map[cursor.name] then
+    cursor.clear()
+  end
+end
+
 -- Cleans up a player's GUI and selected units when they leave
 local on_player_removed = function(event)
   local script_data = storage.unit_control
@@ -506,6 +526,7 @@ unit_control.events =
   [hotkeys.queue_stop] = queue_stop_hotkey,
   [hotkeys.hold_position] = hold_position_hotkey,
   [hotkeys.queue_hold_position] = queue_hold_position_hotkey,
+  [hotkeys.clear_cursor] = clear_cursor,
 
   [defines.events.on_player_died] = on_player_removed,
   [defines.events.on_player_left_game] = on_player_removed,

@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.13
-Date: 2026-03-26
+Date: 2026-03-27
 
   Changes:
     - Bind "ERM Clear Cursor" custom input to Q. It MUST be same key as basic interaction "clear cursor". It fixes the 2nd issue below.

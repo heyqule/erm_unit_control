@@ -129,6 +129,16 @@ local select_all_deployers =
   order="bj",
 }
 
+local clear_cursor =
+{
+  type = "custom-input",
+  name = hotkeys.clear_cursor,
+  localised_name = {"controls", hotkeys.clear_cursor}, -- FIX: Use {"section", "key"} format
+  key_sequence = "Q",
+  consuming = "none",
+  order="bj",
+}
+
 local left_click =
 {
   type = "custom-input",
@@ -182,6 +192,7 @@ data:extend
   queue_hold_position,
   --quick_unit_selection,
   select_all_units,
+  clear_cursor,
   left_click,
   right_click,
   shift_left_click,
