@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.1.14
+Date: 2026-06-22
+
+  Changes:
+    - Removed WIP perimeter mode.  Not feasible as the units tended to run into enemy territory.
+
+  Bugfixes:
+    - Bump base version to 2.0.77+ as it fixed a core bug that caused multiplayer desync.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.13
 Date: 2026-03-27
 

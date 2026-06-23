@@ -4,7 +4,6 @@
 local Core = require("script/uc_core")
 local Indicators = require("script/uc_indicators")
 local HuntingMode = require("hunting_mode")
-local PerimeterMode = require("perimeter_mode")
 
 local Commands = {}
 
@@ -242,10 +241,6 @@ local type_handlers = {
     local unit_data = data.unit_data
     local event = data.event
     HuntingMode.update(unit_data, Commands.set_command, Commands.set_unit_idle, event)
-  end,
-  [next_command_type.perimeter] = function(data)
-    local unit_data = data.unit_data
-    PerimeterMode.update(unit_data, Commands.set_command, Commands.set_unit_idle)
   end,
   [next_command_type.hold_position] = function(data)
     local unit_data = data.unit_data

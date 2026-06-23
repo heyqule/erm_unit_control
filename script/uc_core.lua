@@ -75,10 +75,6 @@ Core.script_data =
   reactive_defense_groups = {},
   reactive_defense_cooldown = {},
   
-  
-  --- Data for perimeter
-  perimeter_mode_enabled = settings.global["erm-unit-control-perimeter-mode"].value,
-  
   --- OPTIMIZATION: Runtime Optimization, reduce accuracy of certain functions
   group_speed_size_cache = {},  -- OPTIMIZATION: Cache for group size/speed calculations
   -- Action debounce settings (can be adjusted by server via mod settings)
@@ -108,7 +104,6 @@ Core.next_command_type =
   follow = 6,
   hold_position = 7,
   hunt = 8,
-  perimeter = 10
 }
 
 -- Custom event names for the mod

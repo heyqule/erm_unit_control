@@ -13,7 +13,6 @@ https://mods.factorio.com/mod/erm_protoss (some playable protoss units in late g
 - Configurable max group selection radius, default 100 tiles, up to 320. (configurable in map settings)
 - Hunting Strategy - command a group to perform search and destroy operation
 - Reactive Defensive Strategy - When a player entity killed, the nearby units will come to aid, then return to original location once the operation is completed.
-- Perimeter Defending Strategy - When radar scan an chunk with enemy buildings, The nearby units will go attack that enemy base, then return to radar.
 
 ### Contribution Credit:
 - BertTheParrot - Added suicide/suicide all button to GUI.
@@ -31,7 +30,6 @@ https://mods.factorio.com/mod/erm_protoss (some playable protoss units in late g
 - **Follow Target** select unit, click follow target button, click on any friendly entity with health and they will follow.  Alt: Shift + right-click on the follow target.
 - **Hunting Mode** select unit, click hunting mode button, they will search nearby enemy entity to kill.
 - **Reactive Defense** Move units to an active warzone. When certain building type dies nearby, they'll march to that location, then return to original location (with small offset) after mission completed.
-- **Perimeter Defense** WIP.
 - **Suicide** select unit, press Delete or use GUI
 - **Suicide All** select units, press Shift + Delete or use GUI
 

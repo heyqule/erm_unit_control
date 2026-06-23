@@ -442,7 +442,6 @@ local setting_map = {
   ["erm-unit-control-hunting-mode"] = "hunting_mode_enabled",
   ["erm-unit-control-reactive-defense-mode"] = "reactive_defense_mode_enabled",
   ["erm-unit-control-reactive-defense-unit-search-range"] = "reactive_defender_unit_search_range",
-  ["erm-unit-control-perimeter-mode"] = "perimeter_mode_enabled",
   ["erm-unit-control-reactive-defense-cooldown"] = "reactive_defender_cooldown",
   ["erm-unit-control-enable-suicide-gui"] = "enable_suicide_gui",
   ["erm-unit-control-enable-runtime-optimization"] = "runtime_optimization_enabled"

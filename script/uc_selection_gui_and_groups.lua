@@ -523,24 +523,7 @@ local gui_actions =
     game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
   end,
 
-  -- Button to activate 'Perimeter' mode
-  perimeter_button = function(event)
-    local group = Module.Selection.get_selected_units(event.player_index)
-    if not group then return end
-    
-    local perimeter_queue = {command_type = next_command_type.perimeter}
-    local script_data = storage.unit_control
-    local units = script_data.units
-    for unit_number, unit in pairs(group) do
-      local unit_data = units[unit_number]
-      unit_data.mode = "perimeter"
-      unit_data.original_position = unit.position -- Store current pos
-      unit_data.command_queue = {perimeter_queue}
-      Commands.set_unit_not_idle(unit_data)
-      Commands.process_command_queue(unit_data) -- Start the command immediately
-    end
-    game.get_player(event.player_index).play_sound({path = tool_names.unit_move_sound})
-  end,
+
 
   -- Button for selecting a control group from the GUI
   control_group_button = function(event, action)
@@ -695,7 +678,6 @@ local button_map =
   follow_button = {sprite = "item/"..tool_names.unit_follow_tool, tooltip = {"tooltip."..tool_names.unit_follow_tool}},
   scout_button = {sprite = "utility/map", tooltip = {"tooltip."..Core.hotkeys.scout}},
   hunt_button = {sprite = "utility/center", tooltip = {"gui.hunt-mode"}, style = "shortcut_bar_button_small_red"},
-  perimeter_button = {sprite = "utility/refresh", tooltip = {"gui.perimeter-mode"}, style = "shortcut_bar_button_small_green"},
 }
 
 local suicide_button_map = {
@@ -705,8 +687,6 @@ local suicide_button_map = {
 
 local check_disabled = {
   hunt_button = function(script_data) return script_data.hunting_mode_enabled == false  end,
-  --- If you need to use perimeter button, swap it with the commented out code.
-  perimeter_button = function(script_data) return true end -- return script_data.perimeter_mode_enabled == false end
 }
 
 -- Creates or updates the main unit control GUI for a player
