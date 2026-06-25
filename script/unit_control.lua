@@ -431,8 +431,6 @@ local set_map_settings = function()
   settings.path_finder.max_steps_worked_per_tick = 400
   settings.path_finder.max_clients_to_accept_any_new_request = 1000
   settings.path_finder.use_path_cache = false
-  settings.steering.moving.force_unit_fuzzy_goto_behavior = true
-  settings.steering.default.force_unit_fuzzy_goto_behavior = false
   settings.max_failed_behavior_count = 5
 end
 
