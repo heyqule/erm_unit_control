@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 2026-06-27
+
+  Features:
+    - Updated for Factorio 2.1.
+
+  Changes:
+    - Removed ColonyBuilder as hidden dependency.  That mod is no longer maintained. 
+
+---------------------------------------------------------------------------------------------------
 Version: 1.1.14
 Date: 2026-06-22
 

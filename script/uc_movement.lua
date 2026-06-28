@@ -72,7 +72,7 @@ end
 -- OPTIMIZED: Cache group size/speed to avoid recalculation every move
 local get_group_size_and_speed = function(group)
   -----@profiler
-  --local profiler = game.create_profiler()
+  --local profiler = helpers.create_profiler()
   -- Build a stable cache key from the group's first unit number and size
 
   local script_data = storage.unit_control

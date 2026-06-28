@@ -302,7 +302,7 @@ end
 -- Assigns attack targets for a group, finding the closest enemy for each unit
 local bulk_attack_closest = function(entities, group)
   ---@profiler
-  --local profiler = game.create_profiler()
+  --local profiler = helpers.create_profiler()
   
   for k, entity in pairs (entities) do
     if not (entity.valid and (entity.get_health_ratio() or 0) > 0) then
