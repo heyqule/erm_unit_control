@@ -121,40 +121,43 @@ function Movement.make_move_command(param)
   local i = 0
 
   local size, speed = get_group_size_and_speed(group)
+  local surface_index = surface.index
 
   for unit_number, entity in pairs (group) do
-    local offset = Commands.get_move_offset(i, size)
-    i = i + 1
-    local destination = {origin.x + offset.x, origin.y + offset.y}
-    local is_unit = (entity.type == "unit")
-    local found_destination = find(entity.name, destination, 0, 0.5)
-    local command =
-    {
-      command_type = next_command_type.move,
-      type = type,
-      distraction = distraction,
-      radius = 2, -- FIX: Increased radius from 0.5 to 2 to stop "wandering"
-      speed = speed,
-      pathfind_flags = path_flags,
-      destination = found_destination or destination, -- Use original if no spot found
-      do_separation = true
-    }
-    local unit_data = units[unit_number]
-    if append then
-      if is_unit and unit_data.idle then
-        -- If idle, start moving immediately
-        Commands.set_command(unit_data, command)
-      end
-      table.insert(unit_data.command_queue, command)
-    else
-      if is_unit then
-        Commands.set_command(unit_data, command)
-        unit_data.command_queue = {}
-      else
-        unit_data.command_queue = {command}
-      end
+    if entity.surface.index == surface_index then
+        local offset = Commands.get_move_offset(i, size)
+        i = i + 1
+        local destination = {origin.x + offset.x, origin.y + offset.y}
+        local is_unit = (entity.type == "unit")
+        local found_destination = find(entity.name, destination, 0, 0.5)
+        local command =
+        {
+          command_type = next_command_type.move,
+          type = type,
+          distraction = distraction,
+          radius = 2, -- FIX: Increased radius from 0.5 to 2 to stop "wandering"
+          speed = speed,
+          pathfind_flags = path_flags,
+          destination = found_destination or destination, -- Use original if no spot found
+          do_separation = true
+        }
+        local unit_data = units[unit_number]
+        if append then
+          if is_unit and unit_data.idle then
+            -- If idle, start moving immediately
+            Commands.set_command(unit_data, command)
+          end
+          table.insert(unit_data.command_queue, command)
+        else
+          if is_unit then
+            Commands.set_command(unit_data, command)
+            unit_data.command_queue = {}
+          else
+            unit_data.command_queue = {command}
+          end
+        end
+        Commands.set_unit_not_idle(unit_data)
     end
-    Commands.set_unit_not_idle(unit_data)
   end
 end
 
@@ -256,48 +259,51 @@ function Movement.make_patrol_command(param)
   local units = script_data.units
 
   local size, speed = get_group_size_and_speed(group)
+  local surface_index = surface.index
   local i = 0
   for unit_number, entity in pairs (group) do
-    local offset = Commands.get_move_offset(i, size)
-    i = i + 1
-    local destination = {origin.x + offset.x, origin.y + offset.y}
-    local unit_data = units[unit_number]
-    local is_unit = (entity.type == "unit")
-    local next_destination = find(entity.name, destination, 0, 0.5) or destination
-    
-    local command
-    local patrol_command = find_patrol_comand(unit_data.command_queue)
-    if patrol_command and append then
-      -- If appending, add a new point to the existing patrol
-      insert(patrol_command.destinations, next_destination)
-      command = patrol_command -- A reference, but we don't re-insert it
-    else
-      -- Otherwise, create a new patrol command
-      command =
-      {
-        command_type = next_command_type.patrol,
-        destinations = {entity.position, next_destination},
-        destination_index = "initial",
-        speed = speed,
-        do_separation = true,
-        distraction = distraction
-      }
+    if entity.surface.index == surface_index then
+        local offset = Commands.get_move_offset(i, size)
+        i = i + 1
+        local destination = {origin.x + offset.x, origin.y + offset.y}
+        local unit_data = units[unit_number]
+        local is_unit = (entity.type == "unit")
+        local next_destination = find(entity.name, destination, 0, 0.5) or destination
+        
+        local command
+        local patrol_command = find_patrol_comand(unit_data.command_queue)
+        if patrol_command and append then
+          -- If appending, add a new point to the existing patrol
+          insert(patrol_command.destinations, next_destination)
+          command = patrol_command -- A reference, but we don't re-insert it
+        else
+          -- Otherwise, create a new patrol command
+          command =
+          {
+            command_type = next_command_type.patrol,
+            destinations = {entity.position, next_destination},
+            destination_index = "initial",
+            speed = speed,
+            do_separation = true,
+            distraction = distraction
+          }
+        end
+        
+        if not append then
+          unit_data.command_queue = {command}
+          Commands.set_unit_not_idle(unit_data)
+          if is_unit then
+            Commands.process_command_queue(unit_data)
+          end
+        elseif not patrol_command then
+          -- This is append=true, but no patrol command existed, so insert the new one
+          insert(unit_data.command_queue, command)
+          if is_unit and unit_data.idle then
+            Commands.process_command_queue(unit_data)
+          end
+        end
+        Indicators.add_unit_indicators(unit_data)
     end
-    
-    if not append then
-      unit_data.command_queue = {command}
-      Commands.set_unit_not_idle(unit_data)
-      if is_unit then
-        Commands.process_command_queue(unit_data)
-      end
-    elseif not patrol_command then
-      -- This is append=true, but no patrol command existed, so insert the new one
-      insert(unit_data.command_queue, command)
-      if is_unit and unit_data.idle then
-        Commands.process_command_queue(unit_data)
-      end
-    end
-    Indicators.add_unit_indicators(unit_data)
   end
 end
 
@@ -327,22 +333,29 @@ function Movement.make_attack_command(group, entities, append)
     command_type = next_command_type.attack,
     targets = entities
   }
+  local group_surface_index
+  for _, entity in pairs(group) do
+    group_surface_index = entity.surface and entity.surface.index
+    break
+  end
   for unit_number, unit in pairs (group) do
-    local commandable = (unit.type == "unit")
-    local unit_data = units_table[unit_number]
-    if unit_data then -- Add safety check
-      if append then
-        table.insert(unit_data.command_queue, next_command)
-        if unit_data.idle and commandable then
-          Commands.register_to_attack(unit_data)
+    if unit.surface and unit.surface.index == group_surface_index then
+        local commandable = (unit.type == "unit")
+        local unit_data = units_table[unit_number]
+        if unit_data then -- Add safety check
+          if append then
+            table.insert(unit_data.command_queue, next_command)
+            if unit_data.idle and commandable then
+              Commands.register_to_attack(unit_data)
+            end
+          else
+            unit_data.command_queue = {next_command}
+            if commandable then
+              Commands.register_to_attack(unit_data)
+            end
+          end
+          Commands.set_unit_not_idle(unit_data)
         end
-      else
-        unit_data.command_queue = {next_command}
-        if commandable then
-          Commands.register_to_attack(unit_data)
-        end
-      end
-      Commands.set_unit_not_idle(unit_data)
     end
   end
 end
@@ -352,27 +365,30 @@ function Movement.make_follow_command(group, target, append)
   if not (target and target.valid) then return end
   local script_data = storage.unit_control
   local units_table = script_data.units
+  local target_surface_index = target.surface and target.surface.index
   for unit_number, unit in pairs (group) do
-    local commandable = (unit.type == "unit")
-    local next_command =
-    {
-      command_type = next_command_type.follow,
-      target = target
-    }
-    local unit_data = units_table[unit_number]
-    if unit_data then -- Add safety check
-      if append then
-        table.insert(unit_data.command_queue, next_command)
-        if unit_data.idle and commandable then
-          Commands.unit_follow(unit_data)
+    if unit.surface and unit.surface.index == target_surface_index then
+        local commandable = (unit.type == "unit")
+        local next_command =
+        {
+          command_type = next_command_type.follow,
+          target = target
+        }
+        local unit_data = units_table[unit_number]
+        if unit_data then -- Add safety check
+          if append then
+            table.insert(unit_data.command_queue, next_command)
+            if unit_data.idle and commandable then
+              Commands.unit_follow(unit_data)
+            end
+          else
+            unit_data.command_queue = {next_command}
+            if commandable then
+              Commands.unit_follow(unit_data)
+            end
+          end
+          Commands.set_unit_not_idle(unit_data)
         end
-      else
-        unit_data.command_queue = {next_command}
-        if commandable then
-          Commands.unit_follow(unit_data)
-        end
-      end
-      Commands.set_unit_not_idle(unit_data)
     end
   end
 end
