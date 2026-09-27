@@ -51,282 +51,283 @@ defines.command = {
 ]]
 
 local acceptable_entity_types = util.list_to_map({
-  "artillery-turret",
-  "ammo-turret",
-  "turret",
-  "electric-turret",
-  "fluid-turret",
-  "assembling-machine",
-  "rocket-silo",
-  "furnace",
-  "mining-drill",
-  "boiler",
-  "radar",
-  "battery",
-  "solar-panel",
-  "generator",
-  "fusion-generator",
-  "lab",
-  "pump",
-  "transport-belt",
-  "pipe",
-  "electric-pole",
-  "offshore-pump",
-  "roboport",
-  "wall",
-  "gate",
-  "rail-ramp",
-  "rail-support",
-  "train-stop",
-  "straight-rail",
-  "half-diagonal-rail",
-  "curved-rail-a",
-  "curved-rail-b",
-  "legacy-curved-rail",
-  "legacy-straight-rail",
-  "locomotive",
-  "cargo-wagon",
-  "fluid-wagon",
-  "container",
+    "artillery-turret",
+    "ammo-turret",
+    "turret",
+    "electric-turret",
+    "fluid-turret",
+    "assembling-machine",
+    "rocket-silo",
+    "furnace",
+    "mining-drill",
+    "boiler",
+    "radar",
+    "battery",
+    "solar-panel",
+    "generator",
+    "fusion-generator",
+    "lab",
+    "pump",
+    "transport-belt",
+    "pipe",
+    "electric-pole",
+    "offshore-pump",
+    "roboport",
+    "wall",
+    "gate",
+    "rail-ramp",
+    "rail-support",
+    "train-stop",
+    "straight-rail",
+    "half-diagonal-rail",
+    "curved-rail-a",
+    "curved-rail-b",
+    "legacy-curved-rail",
+    "legacy-straight-rail",
+    "locomotive",
+    "cargo-wagon",
+    "fluid-wagon",
+    "container",
 })
 
 local valid_idle_command_type = {
-   [defines.command.wander] = true,
-   [defines.command.stop] = true,
+    [defines.command.wander] = true,
+    [defines.command.stop] = true,
 }
 
 local valid_uc_command_type = {
-  [Core.next_command_type.patrol] = true,
-  --[Core.next_command_type.hold_position] = true,
+    [Core.next_command_type.patrol] = true,
+    --[Core.next_command_type.hold_position] = true,
 }
 
 local go_home_radius = 2
 --- assuming target_unit passed valid check, check whether the target_unit has command that is allowed to be override.
 local is_under_overridable_commands = function(target_unit, unit_control_data)
-  if unit_control_data[target_unit.unit_number] and
-     next(unit_control_data[target_unit.unit_number].command_queue) and
-     valid_uc_command_type[unit_control_data[target_unit.unit_number].command_queue[1].command_type]
-  then
-    return false
-  end
-  
-  local valid_unit_command = target_unit.commandable and
-      (
-          target_unit.commandable.parent_group or
-          (
-              target_unit.commandable.has_command and
-              valid_idle_command_type[target_unit.commandable.command.type] == nil
-          )
-      )
-   return valid_unit_command
+    if unit_control_data[target_unit.unit_number] and
+            next(unit_control_data[target_unit.unit_number].command_queue) and
+            valid_uc_command_type[unit_control_data[target_unit.unit_number].command_queue[1].command_type]
+    then
+        return false
+    end
+
+    local valid_unit_command = target_unit.commandable and
+            (
+                    target_unit.commandable.parent_group or
+                            (
+                                    target_unit.commandable.has_command and
+                                            valid_idle_command_type[target_unit.commandable.command.type] == nil
+                            )
+            )
+    return valid_unit_command
 end
 
 function ReactiveDefense.search_enemy(entity)
-  if not storage.unit_control.reactive_defense_mode_enabled then
-    return
-  end
-
-  if entity and entity.valid and
-    acceptable_entity_types[entity.type] and
-    entity.force.ai_controllable == false
-  then
-    local force = entity.force
-    local unit_control_data = storage.unit_control
-    if game.tick < (unit_control_data.reactive_defense_cooldown[force.index] or 0) then
-      return
+    if not storage.unit_control.reactive_defense_mode_enabled then
+        return
     end
-    
-    storage.unit_control.reactive_defense_cooldown[force.index] = game.tick + unit_control_data.reactive_defender_cooldown * second
-    local unit_search_range = unit_control_data.reactive_defense_unit_search_range
-    local surface = entity.surface
-    local position = entity.position
-    local enemy = surface.find_nearest_enemy({
-      position = position, -- Search *from the origin*, not the unit
-      max_distance = unit_search_range,
-      force = entity.force
-    })
-    if not enemy then return end
-    
-    local target_unit_result = surface.find_entities_filtered({
-      area = {
-        left_top = {x = position.x - unit_search_range, y = position.y - unit_search_range},
-        right_bottom = {x = position.x + unit_search_range, y = position.y + unit_search_range}
-      },
-      force = force,
-      limit = 1,
-      type = "unit"
-    })
-    local target_unit = target_unit_result[1]
-    if not target_unit or is_under_overridable_commands(target_unit, unit_control_data.units) then 
-      return 
-    end
-    
-    local target_unit_position = target_unit.position
-    local local_unit_search_range = unit_control_data.max_selectable_radius
-    local defense_units = surface.find_entities_filtered({
-      area = {
-        left_top = {x = target_unit_position.x - local_unit_search_range, y = target_unit_position.y - local_unit_search_range},
-        right_bottom = {x = target_unit_position.x + local_unit_search_range, y = target_unit_position.y + local_unit_search_range}
-      },
-      force = force,
-      limit = unit_control_data.max_selectable_units_limit,
-      type = "unit"
-    })
-    if not next(defense_units) then return end
 
-    local group_data = unit_control_data.reactive_defense_groups
-    local group = surface.create_unit_group({
-      force = force,
-      position = target_unit_position
-    })
-    for _, unit in pairs(defense_units) do
-      group.add_member(unit)
-    end
-    local command = {
-      type = defines.command.compound,
-      structure_type = defines.compound_command.return_last,
-      commands =
-      {
-        {
-          type = defines.command.attack_area,
-          destination = { x = position.x, y = position.y },
-          radius = 8,
-          distraction = defines.distraction.by_enemy
-        },
-        {
-          type = defines.command.go_to_location,
-          distraction = defines.distraction.by_enemy,
-          destination = {x = target_unit_position.x, y = target_unit_position.y},
-          radius = go_home_radius,
-        },
-      }
-    }
-    group.set_command(command)
-    local icon_object = rendering.draw_sprite {
-      sprite = "reactive-defense-icon",
-      target = target_unit,
-      surface = surface,
-      forces = {force},
-      y_scale = 2,
-      x_scale = 2,
-      render_mode = "chart",
-      tint = { r=1,g=0,b=0,a=1 },
-    }
+    if entity and entity.valid and
+            acceptable_entity_types[entity.type] and
+            entity.force.ai_controllable == false
+    then
+        local force = entity.force
+        local unit_control_data = storage.unit_control
+        if game.tick < (unit_control_data.reactive_defense_cooldown[force.index] or 0) then
+            return
+        end
 
-    local line_object = rendering.draw_line({
-      color = { r=1,g=0,b=0,a=1 },
-      from = target_unit.position,
-      to = position,
-      width = 2,
-      gap_length = 3,
-      dash_length = 3,
-      surface = surface,
-      forces = {force},
-      draw_on_ground = true,
-      render_mode = "chart"
-    })
-    
-    --- Make sure clean up code runs when the group destory for any reason
-    local registration_number = script.register_on_object_destroyed(group)
-    group_data[group.unique_id] = {
-      group = group,
-      start_position = target_unit.position,
-      defense_units = defense_units,
-      icon_object = icon_object,
-      line_object = line_object,
-      --registration_number = registration_data -- don't need registration_number, since the group_id is the userful_id
-    }
-    ReactiveDefense.clean_groups()
-  end
+        storage.unit_control.reactive_defense_cooldown[force.index] = game.tick + unit_control_data.reactive_defender_cooldown * second
+        local unit_search_range = unit_control_data.reactive_defense_unit_search_range
+        local surface = entity.surface
+        local position = entity.position
+        local enemy = surface.find_nearest_enemy({
+            position = position, -- Search *from the origin*, not the unit
+            max_distance = unit_search_range,
+            force = entity.force
+        })
+        if not enemy then
+            return
+        end
+
+        local target_unit_result = surface.find_entities_filtered({
+            area = {
+                left_top = { x = position.x - unit_search_range, y = position.y - unit_search_range },
+                right_bottom = { x = position.x + unit_search_range, y = position.y + unit_search_range }
+            },
+            force = force,
+            limit = 1,
+            type = "unit"
+        })
+        local target_unit = target_unit_result[1]
+        if not target_unit or is_under_overridable_commands(target_unit, unit_control_data.units) then
+            return
+        end
+
+        local target_unit_position = target_unit.position
+        local local_unit_search_range = unit_control_data.max_selectable_radius
+        local defense_units = surface.find_entities_filtered({
+            area = {
+                left_top = { x = target_unit_position.x - local_unit_search_range, y = target_unit_position.y - local_unit_search_range },
+                right_bottom = { x = target_unit_position.x + local_unit_search_range, y = target_unit_position.y + local_unit_search_range }
+            },
+            force = force,
+            limit = unit_control_data.max_selectable_units_limit,
+            type = "unit"
+        })
+        if not next(defense_units) then
+            return
+        end
+
+        local group_data = unit_control_data.reactive_defense_groups
+        local group = surface.create_unit_group({
+            force = force,
+            position = target_unit_position
+        })
+        for _, unit in pairs(defense_units) do
+            group.add_member(unit)
+        end
+        local command = {
+            type = defines.command.compound,
+            structure_type = defines.compound_command.return_last,
+            commands = {
+                {
+                    type = defines.command.attack_area,
+                    destination = { x = position.x, y = position.y },
+                    radius = 8,
+                    distraction = defines.distraction.by_enemy
+                },
+                {
+                    type = defines.command.go_to_location,
+                    distraction = defines.distraction.by_enemy,
+                    destination = { x = target_unit_position.x, y = target_unit_position.y },
+                    radius = go_home_radius,
+                },
+            }
+        }
+        group.set_command(command)
+        local icon_object = rendering.draw_sprite {
+            sprite = "reactive-defense-icon",
+            target = target_unit,
+            surface = surface,
+            forces = { force },
+            y_scale = 2,
+            x_scale = 2,
+            render_mode = "chart",
+            tint = { r = 1, g = 0, b = 0, a = 1 },
+        }
+
+        local line_object = rendering.draw_line({
+            color = { r = 1, g = 0, b = 0, a = 1 },
+            from = target_unit.position,
+            to = position,
+            width = 2,
+            gap_length = 3,
+            dash_length = 3,
+            surface = surface,
+            forces = { force },
+            draw_on_ground = true,
+            render_mode = "chart"
+        })
+
+        --- Make sure clean up code runs when the group destory for any reason
+        local registration_number = script.register_on_object_destroyed(group)
+        group_data[group.unique_id] = {
+            group = group,
+            start_position = target_unit.position,
+            defense_units = defense_units,
+            icon_object = icon_object,
+            line_object = line_object,
+            --registration_number = registration_data -- don't need registration_number, since the group_id is the userful_id
+        }
+        ReactiveDefense.clean_groups()
+    end
 end
 
-
 local command_completed = {
-  [defines.behavior_result.deleted] = true,
-  [defines.behavior_result.fail] = true,
-  [defines.behavior_result.success] = true,
+    [defines.behavior_result.deleted] = true,
+    [defines.behavior_result.fail] = true,
+    [defines.behavior_result.success] = true,
 }
 
 function ReactiveDefense.update_ai_completed(event)
-  if not storage.unit_control.reactive_defense_mode_enabled then
-    return
-  end
-
-
-  local script_data = storage.unit_control.reactive_defense_groups[event.unit_number]
-  if command_completed[event.result] and script_data then
-    ---When the group fails, retry return command for each unit, since old group is gone.
-    if event.result == defines.behavior_result.fail or event.result == defines.behavior_result.deleted then
-      --- return to start location
-      for _, unit in pairs(script_data.defense_units) do
-        if unit and unit.valid then
-          unit.commandable.set_command({
-            type = defines.command.go_to_location,
-            distraction = defines.distraction.by_enemy,
-            destination = script_data.start_position,
-            radius = go_home_radius,
-          })
-        end
-      end
+    if not storage.unit_control.reactive_defense_mode_enabled then
+        return
     end
-    ReactiveDefense.clean_group(event.unit_number)
-  end
+
+    local script_data = storage.unit_control.reactive_defense_groups[event.unit_number]
+    if command_completed[event.result] and script_data then
+        ---When the group fails, retry return command for each unit, since old group is gone.
+        if event.result == defines.behavior_result.fail or event.result == defines.behavior_result.deleted then
+            --- return to start location
+            for _, unit in pairs(script_data.defense_units) do
+                if unit and unit.valid then
+                    unit.commandable.set_command({
+                        type = defines.command.go_to_location,
+                        distraction = defines.distraction.by_enemy,
+                        destination = script_data.start_position,
+                        radius = go_home_radius,
+                    })
+                end
+            end
+        end
+        ReactiveDefense.clean_group(event.unit_number)
+    end
 end
 
 function ReactiveDefense.update_group_destroy(event)
-  if not storage.unit_control.reactive_defense_mode_enabled then
-    return
-  end
-  
-  local group_data = storage.unit_control.reactive_defense_groups[event.useful_id]
-  if group_data then
-    ReactiveDefense.clean_group(event.useful_id)
-  end
+    if not storage.unit_control.reactive_defense_mode_enabled then
+        return
+    end
+
+    local group_data = storage.unit_control.reactive_defense_groups[event.useful_id]
+    if group_data then
+        ReactiveDefense.clean_group(event.useful_id)
+    end
 end
 
 function ReactiveDefense.clean_groups()
-  local garbage_tick = storage.unit_control.reactive_defense_garbage_collect_tick or 0
-  local group_data = storage.unit_control.reactive_defense_groups
-  if game.tick > garbage_tick then
-    for group_id, group_data in pairs(group_data) do
-      if group_data and not group_data.group.valid then
-        ReactiveDefense.clean_group(group_id)
-      end
+    local garbage_tick = storage.unit_control.reactive_defense_garbage_collect_tick or 0
+    local group_data = storage.unit_control.reactive_defense_groups
+    if game.tick > garbage_tick then
+        for group_id, group_data in pairs(group_data) do
+            if group_data and not group_data.group.valid then
+                ReactiveDefense.clean_group(group_id)
+            end
+        end
+        storage.unit_control.reactive_defense_garbage_collect_tick = game.tick + 5 * minute
     end
-    storage.unit_control.reactive_defense_garbage_collect_tick = game.tick + 5 * minute
-  end
 end
 
 function ReactiveDefense.clean_group(group_id)
-  local script_data = storage.unit_control.reactive_defense_groups[group_id]
-  if script_data then
-    --- Clean Icon  
-    local icon_object = script_data.icon_object
-    if icon_object and icon_object.valid  then 
-      icon_object.destroy() 
-    end
-    local line_object = script_data.line_object
-    if line_object and line_object.valid then
-      line_object.destroy()
-    end
-    --- Clean Data
-    local group = script_data.group
-    if script_data.group and script_data.group.valid then
-      -- Resume what the unit need to do previously.  e.g Patrol
-      local unit_data_set = storage.unit_control.units
-      for _, member in pairs(group.members) do
-        local unit_data = unit_data_set[member.unit_number]
-        if unit_data and
-          type(unit_data.command_queue) == 'table'
-        then
-          Commands.process_command_queue(unit_data)
+    local script_data = storage.unit_control.reactive_defense_groups[group_id]
+    if script_data then
+        --- Clean Icon  
+        local icon_object = script_data.icon_object
+        if icon_object and icon_object.valid then
+            icon_object.destroy()
         end
-      end
-      group.destroy()
+        local line_object = script_data.line_object
+        if line_object and line_object.valid then
+            line_object.destroy()
+        end
+        --- Clean Data
+        local group = script_data.group
+        if script_data.group and script_data.group.valid then
+            -- Resume what the unit need to do previously.  e.g Patrol
+            local unit_data_set = storage.unit_control.units
+            for _, member in pairs(group.members) do
+                local unit_data = unit_data_set[member.unit_number]
+                if unit_data and
+                        type(unit_data.command_queue) == 'table'
+                then
+                    Commands.process_command_queue(unit_data)
+                end
+            end
+            group.destroy()
+        end
+
+        storage.unit_control.reactive_defense_groups[group_id] = nil
     end
-    
-    storage.unit_control.reactive_defense_groups[group_id] = nil
-  end
 end
 
 return ReactiveDefense

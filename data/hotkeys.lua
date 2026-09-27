@@ -1,202 +1,187 @@
 local hotkeys = names.hotkeys
 local tools = names.unit_tools
 
-local become_an_hero =
-{
-  type = "custom-input",
-  name = hotkeys.suicide,
-  localised_name = {"controls", hotkeys.suicide}, -- FIX: Use {"section", "key"} format
-  key_sequence = "DELETE",
-  consuming = "game-only",
-  order="aa",
+local become_an_hero = {
+    type = "custom-input",
+    name = hotkeys.suicide,
+    localised_name = { "controls", hotkeys.suicide }, -- FIX: Use {"section", "key"} format
+    key_sequence = "DELETE",
+    consuming = "game-only",
+    order = "aa",
 }
 
-local become_all_an_hero =
-{
-  type = "custom-input",
-  name = hotkeys.suicide_all,
-  localised_name = {"controls", hotkeys.suicide_all}, -- FIX: Use {"section", "key"} format
-  key_sequence = "CONTROL + DELETE",
-  consuming = "game-only",
-  order="ab",
+local become_all_an_hero = {
+    type = "custom-input",
+    name = hotkeys.suicide_all,
+    localised_name = { "controls", hotkeys.suicide_all }, -- FIX: Use {"section", "key"} format
+    key_sequence = "CONTROL + DELETE",
+    consuming = "game-only",
+    order = "ab",
 }
 
 local attack_move = {
-  type = "custom-input",
-  name = tools.unit_attack_move_tool,
-  localised_name = {"item-name", tools.unit_attack_move_tool}, -- FIX: Use {"section", "key"} format
-  key_sequence = "ALT + A",
-  consuming = "game-only",
-  item_to_spawn = tools.unit_attack_move_tool,
-  action = "spawn-item",
-  order="ba",
+    type = "custom-input",
+    name = tools.unit_attack_move_tool,
+    localised_name = { "item-name", tools.unit_attack_move_tool }, -- FIX: Use {"section", "key"} format
+    key_sequence = "ALT + A",
+    consuming = "game-only",
+    item_to_spawn = tools.unit_attack_move_tool,
+    action = "spawn-item",
+    order = "ba",
 }
 
 local move = {
-  type = "custom-input",
-  name = tools.unit_move_tool,
-  localised_name = {"item-name", tools.unit_move_tool}, -- FIX: Use {"section", "key"} format
-  key_sequence = "ALT + M",
-  consuming = "game-only",
-  item_to_spawn = tools.unit_move_tool,
-  action = "spawn-item",
-  order="bb",
+    type = "custom-input",
+    name = tools.unit_move_tool,
+    localised_name = { "item-name", tools.unit_move_tool }, -- FIX: Use {"section", "key"} format
+    key_sequence = "ALT + M",
+    consuming = "game-only",
+    item_to_spawn = tools.unit_move_tool,
+    action = "spawn-item",
+    order = "bb",
 }
 
 local patrol = {
-  type = "custom-input",
-  name = tools.unit_patrol_tool,
-  localised_name = {"item-name", tools.unit_patrol_tool}, -- FIX: Use {"section", "key"} format
-  key_sequence = "ALT + P",
-  consuming = "game-only",
-  item_to_spawn = tools.unit_patrol_tool,
-  action = "spawn-item",
-  order="bc",
+    type = "custom-input",
+    name = tools.unit_patrol_tool,
+    localised_name = { "item-name", tools.unit_patrol_tool }, -- FIX: Use {"section", "key"} format
+    key_sequence = "ALT + P",
+    consuming = "game-only",
+    item_to_spawn = tools.unit_patrol_tool,
+    action = "spawn-item",
+    order = "bc",
 }
 
-local stop =
-{
-  type = "custom-input",
-  name = hotkeys.stop,
-  localised_name = {"controls", hotkeys.stop}, -- FIX: Use {"section", "key"} format
-  key_sequence = "ALT + S",
-  consuming = "game-only",
-  order="bd",
+local stop = {
+    type = "custom-input",
+    name = hotkeys.stop,
+    localised_name = { "controls", hotkeys.stop }, -- FIX: Use {"section", "key"} format
+    key_sequence = "ALT + S",
+    consuming = "game-only",
+    order = "bd",
 }
 
-local queue_stop =
-{
-  type = "custom-input",
-  name = hotkeys.queue_stop,
-  localised_name = {"controls", hotkeys.queue_stop}, -- FIX: Use {"section", "key"} format
-  key_sequence = "SHIFT + ALT + S",
-  consuming = "game-only",
-  order="be",
+local queue_stop = {
+    type = "custom-input",
+    name = hotkeys.queue_stop,
+    localised_name = { "controls", hotkeys.queue_stop }, -- FIX: Use {"section", "key"} format
+    key_sequence = "SHIFT + ALT + S",
+    consuming = "game-only",
+    order = "be",
 }
 
-local hold_position =
-{
-  type = "custom-input",
-  name = hotkeys.hold_position,
-  localised_name = {"controls", hotkeys.hold_position}, -- FIX: Use {"section", "key"} format
-  key_sequence = "ALT + H",
-  consuming = "game-only",
-  order="bf",
+local hold_position = {
+    type = "custom-input",
+    name = hotkeys.hold_position,
+    localised_name = { "controls", hotkeys.hold_position }, -- FIX: Use {"section", "key"} format
+    key_sequence = "ALT + H",
+    consuming = "game-only",
+    order = "bf",
 }
 
-local queue_hold_position =
-{
-  type = "custom-input",
-  name = hotkeys.queue_hold_position,
-  localised_name = {"controls", hotkeys.queue_hold_position}, -- FIX: Use {"section", "key"} format
-  key_sequence = "SHIFT + ALT + H",
-  consuming = "game-only",
-  order="bg",
+local queue_hold_position = {
+    type = "custom-input",
+    name = hotkeys.queue_hold_position,
+    localised_name = { "controls", hotkeys.queue_hold_position }, -- FIX: Use {"section", "key"} format
+    key_sequence = "SHIFT + ALT + H",
+    consuming = "game-only",
+    order = "bg",
 }
 
-local quick_unit_selection =
-{
-  type = "custom-input",
-  name = tools.unit_selection_tool,
-  localised_name = {"item-name", tools.unit_selection_tool}, -- FIX: Use {"section", "key"} format
-  key_sequence = "CONTROL + ALT + mouse-button-1",
-  consuming = "game-only",
-  --consuming = "none",
-  item_to_spawn = tools.unit_selection_tool,
-  action = "spawn-item",
-  order="bh",
+local quick_unit_selection = {
+    type = "custom-input",
+    name = tools.unit_selection_tool,
+    localised_name = { "item-name", tools.unit_selection_tool }, -- FIX: Use {"section", "key"} format
+    key_sequence = "CONTROL + ALT + mouse-button-1",
+    consuming = "game-only",
+    --consuming = "none",
+    item_to_spawn = tools.unit_selection_tool,
+    action = "spawn-item",
+    order = "bh",
 }
 
-local select_all_units =
-{
-  type = "custom-input",
-  name = hotkeys.select_all_units,
-  localised_name = {"controls", hotkeys.select_all_units}, -- FIX: Use {"section", "key"} format
-  localised_description = {"controls-description", hotkeys.select_all_units},
-  key_sequence = "SHIFT + ALT + mouse-button-1",
-  consuming = "game-only",
-  order="bi",
+local select_all_units = {
+    type = "custom-input",
+    name = hotkeys.select_all_units,
+    localised_name = { "controls", hotkeys.select_all_units }, -- FIX: Use {"section", "key"} format
+    localised_description = { "controls-description", hotkeys.select_all_units },
+    key_sequence = "SHIFT + ALT + mouse-button-1",
+    consuming = "game-only",
+    order = "bi",
 }
 
-local select_all_deployers =
-{
-  type = "custom-input",
-  name = hotkeys.select_all_deployers,
-  localised_name = {"controls", hotkeys.select_all_deployers}, -- FIX: Use {"section", "key"} format
-  key_sequence = "SHIFT + ALT + mouse-button-2",
-  consuming = "game-only",
-  consuming = "none",
-  order="bj",
+local select_all_deployers = {
+    type = "custom-input",
+    name = hotkeys.select_all_deployers,
+    localised_name = { "controls", hotkeys.select_all_deployers }, -- FIX: Use {"section", "key"} format
+    key_sequence = "SHIFT + ALT + mouse-button-2",
+    consuming = "game-only",
+    consuming = "none",
+    order = "bj",
 }
 
-local clear_cursor =
-{
-  type = "custom-input",
-  name = hotkeys.clear_cursor,
-  localised_name = {"controls", hotkeys.clear_cursor}, -- FIX: Use {"section", "key"} format
-  key_sequence = "Q",
-  consuming = "none",
-  order="bj",
+local clear_cursor = {
+    type = "custom-input",
+    name = hotkeys.clear_cursor,
+    localised_name = { "controls", hotkeys.clear_cursor }, -- FIX: Use {"section", "key"} format
+    key_sequence = "Q",
+    consuming = "none",
+    order = "bj",
 }
 
-local left_click =
-{
-  type = "custom-input",
-  name = "left-click",
-  localised_name = {"controls", "left-click"}, -- FIX: Use {"section", "key"} format
-  key_sequence = "mouse-button-1",
-  consuming = "none",
-  order = "ca",
+local left_click = {
+    type = "custom-input",
+    name = "left-click",
+    localised_name = { "controls", "left-click" }, -- FIX: Use {"section", "key"} format
+    key_sequence = "mouse-button-1",
+    consuming = "none",
+    order = "ca",
 }
 
-local right_click =
-{
-  type = "custom-input",
-  name = "right-click",
-  localised_name = {"controls", "right-click"}, -- FIX: Use {"section", "key"} format
-  key_sequence = "mouse-button-2",
-  consuming = "none",
-  order = "cb",
+local right_click = {
+    type = "custom-input",
+    name = "right-click",
+    localised_name = { "controls", "right-click" }, -- FIX: Use {"section", "key"} format
+    key_sequence = "mouse-button-2",
+    consuming = "none",
+    order = "cb",
 }
 
-local shift_left_click =
-{
-  type = "custom-input",
-  name = "shift-left-click",
-  localised_name = {"controls", "shift-left-click"}, -- FIX: Use {"section", "key"} format
-  key_sequence = "SHIFT + mouse-button-1",
-  consuming = "none",
-  order = "cc",
+local shift_left_click = {
+    type = "custom-input",
+    name = "shift-left-click",
+    localised_name = { "controls", "shift-left-click" }, -- FIX: Use {"section", "key"} format
+    key_sequence = "SHIFT + mouse-button-1",
+    consuming = "none",
+    order = "cc",
 }
 
-local shift_right_click =
-{
-  type = "custom-input",
-  name = "shift-right-click",
-  localised_name = {"controls", "shift-right-click"}, -- FIX: Use {"section", "key"} format
-  key_sequence = "SHIFT + mouse-button-2",
-  consuming = "none",
-  order = "cd",
+local shift_right_click = {
+    type = "custom-input",
+    name = "shift-right-click",
+    localised_name = { "controls", "shift-right-click" }, -- FIX: Use {"section", "key"} format
+    key_sequence = "SHIFT + mouse-button-2",
+    consuming = "none",
+    order = "cd",
 }
 
-data:extend
-{
-  become_an_hero,
-  become_all_an_hero,
-  attack_move,
-  move,
-  patrol,
-  stop,
-  queue_stop,
-  hold_position,
-  queue_hold_position,
-  --quick_unit_selection,
-  select_all_units,
-  clear_cursor,
-  left_click,
-  right_click,
-  shift_left_click,
-  shift_right_click
+data:extend {
+    become_an_hero,
+    become_all_an_hero,
+    attack_move,
+    move,
+    patrol,
+    stop,
+    queue_stop,
+    hold_position,
+    queue_hold_position,
+    --quick_unit_selection,
+    select_all_units,
+    clear_cursor,
+    left_click,
+    right_click,
+    shift_left_click,
+    shift_right_click
 }
 
 -- ===================================================================
@@ -204,49 +189,49 @@ data:extend
 -- This logic was moved from data/control_group_hotkeys.lua
 -- ===================================================================
 if not names.hotkeys then
-  names.hotkeys = {}
+    names.hotkeys = {}
 end
 
 local add_hotkey = function(name, key, order, localised_name_key)
-  names.hotkeys[name] = "erm-unit-control-" .. name
-  data:extend{
-    {
-      type = "custom-input",
-      name = names.hotkeys[name],
-      localised_name = {"controls", names.hotkeys[name]}, -- FIX: Use {"section", "key"} format
-      key_sequence = key,
-      order = order
+    names.hotkeys[name] = "erm-unit-control-" .. name
+    data:extend {
+        {
+            type = "custom-input",
+            name = names.hotkeys[name],
+            localised_name = { "controls", names.hotkeys[name] }, -- FIX: Use {"section", "key"} format
+            key_sequence = key,
+            order = order
+        }
     }
-  }
 end
 
 -- Generate hotkeys for groups 1-9
 local key_map = {
-  [1] = "1", [2] = "2", [3] = "3", [4] = "4", [5] = "5",
-  [6] = "6", [7] = "7", [8] = "8", [9] = "9"
+    [1] = "1", [2] = "2", [3] = "3", [4] = "4", [5] = "5",
+    [6] = "6", [7] = "7", [8] = "8", [9] = "9"
 }
 
 -- Start order (f-a-...)
 local order_offset = 61
 
 for i = 1, 9 do
-  local key = key_map[i]
-  
-  -- Select Group: Ctrl + [Number]
-  add_hotkey(
-    "select_control_group_" .. i,
-    "CONTROL + " .. key,
-    "f-a-" .. string.format("%02d", order_offset)
-  )
-  order_offset = order_offset + 1
+    local key = key_map[i]
 
-  -- Set Group: Ctrl + Shift + [Number]
-  add_hotkey(
-    "set_control_group_" .. i,
-    "CONTROL + SHIFT + " .. key,
-    "f-a-" .. string.format("%02d", order_offset)
-  )
-  order_offset = order_offset + 1
+    -- Select Group: Ctrl + [Number]
+    add_hotkey(
+            "select_control_group_" .. i,
+            "CONTROL + " .. key,
+            "f-a-" .. string.format("%02d", order_offset)
+    )
+    order_offset = order_offset + 1
+
+    -- Set Group: Ctrl + Shift + [Number]
+    add_hotkey(
+            "set_control_group_" .. i,
+            "CONTROL + SHIFT + " .. key,
+            "f-a-" .. string.format("%02d", order_offset)
+    )
+    order_offset = order_offset + 1
 end
 -- ===================================================================
 -- ## END OF ADDED BLOCK ##
